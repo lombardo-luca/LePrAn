@@ -305,7 +305,7 @@ class Ui_Dialog(object):
         self.label_results.setText(_translate("Dialog", "Results:"))
         self.label_results2.setText(_translate("Dialog", "Results2:"))
         self.label_logo.setText(_translate("Dialog", "Logo"))
-        self.label.setText(_translate("Dialog", "Version: Alpha 1.1"))
+        self.label.setText(_translate("Dialog", "Version: Alpha 1.2"))
         self.label_2.setText(_translate("Dialog", "Made by Luca \'Syr\' Lombardo"))
         self.label_3.setText(_translate("Dialog", "Countries"))
         self.label_6.setText(_translate("Dialog", "Languages"))
