@@ -1,12 +1,4 @@
 import sys # only needed for access to command line arguments
-from PyQt6 import QtWidgets, uic, QtCore
-from PyQt6.QtWidgets import QStyledItemDelegate, QHeaderView, QDialogButtonBox
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from MainWindow import Ui_MainWindow
-from Dialog2 import Ui_Dialog
-from Settings import Ui_Dialog as Ui_Dialog_Settings
-from bs4 import BeautifulSoup
 import requests
 import re
 import time
@@ -16,10 +8,27 @@ import threading
 import concurrent.futures
 import csv
 import cchardet as chardet
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QHeaderView
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from MainWindow import Ui_MainWindow
+from Dialog2 import Ui_Dialog
+from Settings import Ui_Dialog as Ui_Dialog_Settings
+from bs4 import BeautifulSoup
 from itertools import repeat
 
 MAX_THREADS = 20
-LIST_DELIM = 100
+LIST_DELIM = 200
+
+DEBUG_MAX_INDEX = -1
+DEBUG_TIME_1 = -1
+TOT_TIME_1 = 0
+DEBUG_TIME_2 = -1
+TOT_TIME_2 = 0
+DEBUG_TIME_3 = -1
+TOT_TIME_3 = 0
+
 
 lock = threading.Lock();
 url_list = [];
@@ -36,9 +45,6 @@ gui_lang_list = [];
 gui_countries = "";
 
 if getattr(sys, 'frozen', False):
-    # If the application is run as a bundle, the PyInstaller bootloader
-    # extends the sys module by a flag frozen=True and sets the app 
-    # path into variable _MEIPASS'.
     absolute_path = sys._MEIPASS
 else:
     absolute_path = os.path.dirname(os.path.abspath(__file__))
@@ -74,628 +80,682 @@ def resource_path(relative_path):
 
 # get data from a film page
 def scraper(url_film_page, requests_session):
-        a = 0
-        source  = requests_session.get(url_film_page)
-        soup = BeautifulSoup(source.content,'lxml')
-        str_match = str(soup)
+    global DEBUG_MAX_INDEX
+    global DEBUG_TIME_1
+    global DEBUG_TIME_2
+    global TOT_TIME_1
+    global TOT_TIME_2
 
-        # find runtime
-        a = str_match.find('text-link text-footer">')
-        a = a + len('text-link text-footer">')
+##    sg = url_film_page.find("shin-godzilla")
+##    if sg != -1:
+##        print("SHIN GODZILLA FOUND")
 
-        # find languages
-        b = 0
-        while b != -1:
-                b = str_match.find('/films/language/', b)
-                if b == -1:
-                        break
-                
-                # check if this is an original or a spoken language
-                index = max(0, b-2000)
-                check_spoken = str_match[index:b]
-                if "Spoken Languages" in check_spoken:
-                        b = -1
-                        break
-                
-                b = b + len('/films/language/')
-                b = str_match.find('>', b)
-                if b == -1:
-                        break
-                b = b+1
-                c = str_match.find('<', b)
-                if c == -1:
-                        break
+    debug_start_1 = time.time()
+    
+    a = 0
+    source  = requests_session.get(url_film_page)   # this line is the most costly performance-wise
+    end_time_1 = time.time() - debug_start_1
+    soup = BeautifulSoup(source.content,'lxml')
+    str_match = str(soup)
 
-                lang = str_match[b:c]
-                if ',' in lang:
-                        lang = lang.partition(',')[0]
+    lock.acquire()
+    TOT_TIME_1 += end_time_1
+    if end_time_1 >= DEBUG_TIME_1:
+        DEBUG_TIME_1 = end_time_1
+    lock.release()
 
-                if lang == "No spoken language":
-                        lang = "None"
+    # find runtime
+    a = str_match.find('text-link text-footer">')
+    a = a + len('text-link text-footer">')
+
+    # find languages
+    b = 0
+    while b != -1:
+        b = str_match.find('/films/language/', b)
+        if b == -1:
+                break
         
-                lock.acquire()
-                if lang in langDict:
-                        langDict[lang] = langDict[lang] + 1
-                else:
-                        langDict[lang] = 1
-                #print("I found the language" + lang + "in the film" + url_film_page)
-                lock.release()
-
-        # find countries
-        b = 0
-        while b != -1:
-                b = str_match.find('/films/country/', b)
-                if b == -1:
-                        break
-                b = b + len('/films/country/')
-                b = str_match.find('>', b)
-                if b == -1:
-                        break
-                b = b+1
-                c = str_match.find('<', b)
-                if c == -1:
-                        break
-
-                country = str_match[b:c]
-                if ',' in country:
-                        country = country.partition(',')[0]
-
-                lock.acquire()
-                if country in countryDict:
-                        countryDict[country] = countryDict[country] + 1
-                else:
-                        countryDict[country] = 1
-                lock.release()
-
-        # find genres
-        b = 0
-        while b != -1:
-                b = str_match.find('/films/genre/', b)
-                if b == -1:
-                        break
-                b = b + len('/films/genre/')
-                b = str_match.find('>', b)
-                if b == -1:
-                        break
-                b = b+1
-                c = str_match.find('<', b)
-                if c == -1:
-                        break
-
-                genre = str_match[b:c].capitalize()
-                if ',' in genre:
-                        genre = genre.partition(',')[0]
-
-                lock.acquire()
-                if genre in genreDict:
-                        genreDict[genre] = genreDict[genre] + 1
-                else:
-                        genreDict[genre] = 1
-                lock.release()
-
-        # find directors
-        c = 0
-        d = str_match.find('Directors<', 0)
+        # check if this is an original or a spoken language
+        index = max(0, b-2000)
+        check_spoken = str_match[index:b]
+        if "Spoken Languages" in check_spoken:
+                b = -1
+                break
         
-        # if there are more then 2 directors
-        if d != -1:   
-                b = d
-                while b != -1:
-                        b = str_match.find("/director", b)
-                        if b == -1:
-                                break
+        b = b + len('/films/language/')
+        b = str_match.find('>', b)
+        if b == -1:
+                break
+        b = b+1
+        c = str_match.find('<', b)
+        if c == -1:
+                break
 
-                        e = str_match.find("</section>", d, b)
-                        if e != -1:
-                                break
-                        b = b + len('/director')
-                        b = str_match.find('/">', b)
-                        if b == -1:
-                                break
-                        b = b + len('/">')
-                        c = str_match.find('<', b)
-                        if c == -1:
-                                break
-                        
-                        director = str_match[b:c]
+        lang = str_match[b:c]
+        if ',' in lang:
+                lang = lang.partition(',')[0]
 
-                        lock.acquire()
-                        if director in directorDict:
-                                directorDict[director] = directorDict[director] + 1
-                        else:
-                                directorDict[director] = 1
-                        lock.release()
+        if lang == "No spoken language":
+                lang = "None"
 
-        # if there is only 1 or 2 directors
+        lock.acquire()
+        if lang in langDict:
+                langDict[lang] = langDict[lang] + 1
         else:
-                d = str_match.find("Directed by <a href")
-                b = d
-                while b != -1:
-                        b = str_match.find("/director", b)
-                        if b == -1:
-                                break
+                langDict[lang] = 1
+        #print("I found the language" + lang + "in the film" + url_film_page)
+        lock.release()
 
-                        e = str_match.find("</section>", d, b)
-                        if e != -1:
-                                break
-                        b = b + len('/director')
-                        b = str_match.find('prettify">', b)
-                        if b == -1:
-                                break
-                        b = b + len('prettify">')
-                        c = str_match.find('<', b)
-                        if c == -1:
-                                break
-                        
-                        director = str_match[b:c]
+    # find countries
+    b = 0
+    while b != -1:
+        b = str_match.find('/films/country/', b)
+        if b == -1:
+                break
+        b = b + len('/films/country/')
+        b = str_match.find('>', b)
+        if b == -1:
+                break
+        b = b+1
+        c = str_match.find('<', b)
+        if c == -1:
+                break
 
-                        lock.acquire()
-                        if director in directorDict:
-                                directorDict[director] = directorDict[director] + 1
-                        else:
-                                directorDict[director] = 1
-                        lock.release()
+        country = str_match[b:c]
+        if ',' in country:
+                country = country.partition(',')[0]
 
-        # find actors
-        b = 0
-        c = 0
-        found = 0
-        while found == 0:
-                b = str_match.find('cast-list text-sluglist">', b)
-                if b == -1:
-                        break
-                b = b + len('cast-list text-sluglist">')
-                b = str_match.find('">', b)
-                if b == -1:
-                        break
-                b = b + len('">')
-                c = str_match.find('</', b)
-                if c == -1:
-                        break
+        lock.acquire()
+        if country in countryDict:
+                countryDict[country] = countryDict[country] + 1
+        else:
+                countryDict[country] = 1
+        lock.release()
 
-                d = str_match.find("remove-ads-modal", b, c)
-                if d != -1:
-                        break
+    # find genres
+    b = 0
+    while b != -1:
+        b = str_match.find('/films/genre/', b)
+        if b == -1:
+                break
+        b = b + len('/films/genre/')
+        b = str_match.find('>', b)
+        if b == -1:
+                break
+        b = b+1
+        c = str_match.find('<', b)
+        if c == -1:
+                break
 
-                actor = str_match[b:c]
+        genre = str_match[b:c].capitalize()
+        if ',' in genre:
+                genre = genre.partition(',')[0]
 
-                lock.acquire()
-                if actor in actorDict:
-                        actorDict[actor] = actorDict[actor] + 1
-                else:
-                        actorDict[actor] = 1
-                lock.release()
+        lock.acquire()
+        if genre in genreDict:
+                genreDict[genre] = genreDict[genre] + 1
+        else:
+                genreDict[genre] = 1
+        lock.release()
 
-                found = 1
+    # find directors
+    c = 0
+    d = str_match.find('more-directors', 0)
+    
+    # if there are more then 2 directors
+    if d != -1:   
+        b = d
 
-        while found == 1 and b != -1 and c != -1:
-                b = str_match.find('/actor/', b)
-                if b == -1:
-                        break
-                b = b + len('/actor/')
-                b = str_match.find('">', b)
-                if b == -1:
-                        break
-                b = b + len('">')
-                c = str_match.find('</', b)
-                if c == -1:
-                        break
+##        if sg != -1:
+##            print("SHIN GODZILLA B VALUE PIU DI 2: " + str(b))
+        
+        while b != -1:
+            b = str_match.find("/director", b)
+            if b == -1:
+                    break
 
-                d = str_match.find("remove-ads-modal", b, c)
-                if d != -1:
-                        break
+            e = str_match.find("</section>", d, b)
+            if e != -1:
+                    break
+            b = b + len('/director')
+            b = str_match.find('/">', b)
+            if b == -1:
+                    break
+            b = b + len('/">')
+            c = str_match.find('<', b)
+            if c == -1:
+                    break
+            
+            director = str_match[b:c]
 
-                actor = str_match[b:c]
+##            anno = director.find("Anno")
+##            if anno != -1:
+##                print("FOUND ANNO" + url_film_page)
+##
+##            if sg != -1:
+##                print("SHIN GODZILLA DIRECTOR: " + director)
 
-                lock.acquire()
-                if actor in actorDict:
-                        actorDict[actor] = actorDict[actor] + 1
-                else:
-                        actorDict[actor] = 1
-                lock.release()
+            lock.acquire()
+            if director in directorDict:
+                    directorDict[director] = directorDict[director] + 1
+            else:
+                    directorDict[director] = 1
+            lock.release()
 
-        # return runtime
-        try:
-                ret = int(''.join(map(str,re.findall('\d*\.?\d+',str_match[a:a+20]))))
-                return ret
-        except:
-                return 0
+    # if there is only 1 or 2 directors
+    else:
+        d = str_match.find("Directed by <a href")
+        b = d
+
+##        if sg != -1:
+##            print("SHIN GODZILLA B VALUE 1 O 2: " + str(b))
+        
+        while b != -1:
+            b = str_match.find("/director", b)
+            if b == -1:
+                    break
+
+            e = str_match.find("</section>", d, b)
+            if e != -1:
+                    break
+            b = b + len('/director')
+            b = str_match.find('prettify">', b)
+            if b == -1:
+                    break
+            b = b + len('prettify">')
+            c = str_match.find('<', b)
+            if c == -1:
+                    break
+            
+            director = str_match[b:c]
+
+##            anno = director.find("Anno")
+##            if anno != -1:
+##                print("FOUND ANNO" + url_film_page)
+##
+##            if sg != -1:
+##                print("SHIN GODZILLA DIRECTOR: " + director)
+
+            lock.acquire()
+            if director in directorDict:
+                    directorDict[director] = directorDict[director] + 1
+            else:
+                    directorDict[director] = 1
+            lock.release()
+
+    # find actors
+    b = 0
+    c = 0
+    found = 0
+    while found == 0:
+        b = str_match.find('cast-list text-sluglist">', b)
+        if b == -1:
+                break
+        b = b + len('cast-list text-sluglist">')
+        b = str_match.find('">', b)
+        if b == -1:
+                break
+        b = b + len('">')
+        c = str_match.find('</', b)
+        if c == -1:
+                break
+
+        d = str_match.find("remove-ads-modal", b, c)
+        if d != -1:
+                break
+
+        actor = str_match[b:c]
+
+        lock.acquire()
+        if actor in actorDict:
+                actorDict[actor] = actorDict[actor] + 1
+        else:
+                actorDict[actor] = 1
+        lock.release()
+
+        found = 1
+
+    while found == 1 and b != -1 and c != -1:
+        b = str_match.find('/actor/', b)
+        if b == -1:
+                break
+        b = b + len('/actor/')
+        b = str_match.find('">', b)
+        if b == -1:
+                break
+        b = b + len('">')
+        c = str_match.find('</', b)
+        if c == -1:
+                break
+
+        d = str_match.find("remove-ads-modal", b, c)
+        if d != -1:
+                break
+
+        actor = str_match[b:c]
+
+        lock.acquire()
+        if actor in actorDict:
+                actorDict[actor] = actorDict[actor] + 1
+        else:
+                actorDict[actor] = 1
+        lock.release()
+
+    # return runtime
+    try:
+        ret = int(''.join(map(str,re.findall('\d*\.?\d+',str_match[a:a+20]))))
+        return ret
+    except:
+        return 0
 
 # get films' url
 def getFilms(url_table_page):
-        a = 0
-        b = 0
-        url_ltbxd = "https://letterboxd.com/film/"
-        helpstring = ""
-        source  = requests.get(url_table_page).text
-        soup = BeautifulSoup(source,'lxml')
-        str_match = str(soup)
+    a = 0
+    b = 0
+    url_ltbxd = "https://letterboxd.com/film/"
+    helpstring = ""
+    source  = requests.get(url_table_page).text
+    soup = BeautifulSoup(source,'lxml')
+    str_match = str(soup)
 
-        while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="/film/', a) != -1): #72 film in the table
-                a = str_match.find('data-film-slug="/film/', a)
-                a=a+len('data-film-slug="/film/')
-                helpstring = url_ltbxd
-                while str_match[a] != '/':
-                    helpstring=helpstring+str_match[a]
-                    a=a+1
-                url_list.append(helpstring)
-                helpstring=""
-                b = b+1
-        
-        # debug
-        #url_list.clear()
-        #url_list.append("https://letterboxd.com/film/cloud-atlas/")
-        #url_list.append("https://letterboxd.com/film/one-hundred-steps/")
-        #url_list.append("https://letterboxd.com/film/the-banshees-of-inisherin/")
+    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="/film/', a) != -1): #72 film in the table
+        a = str_match.find('data-film-slug="/film/', a)
+        a=a+len('data-film-slug="/film/')
+        helpstring = url_ltbxd
+        while str_match[a] != '/':
+            helpstring=helpstring+str_match[a]
+            a=a+1
+        url_list.append(helpstring)
+        helpstring=""
+        b = b+1
+    
+    # debug
+    #url_list.clear()
+    #url_list.append("https://letterboxd.com/film/cloud-atlas/")
+    #url_list.append("https://letterboxd.com/film/one-hundred-steps/")
+    #url_list.append("https://letterboxd.com/film/the-banshees-of-inisherin/")
 
 def login(USER):
-        global gui_watched1
-        global gui_watched2
-        global gui_lang
-        global gui_countries
-        
+    global gui_watched1
+    global gui_watched2
+    global gui_lang
+    global gui_countries
+    global DEBUG_MAX_INDEX
+    global DEBUG_TIME_1
+    global DEBUG_TIME_2
+    global DEBUG_TIME_3
+    global TOT_TIME_1
+    global TOT_TIME_2
+    global TOT_TIME_3
+    
+    cnt = 1;
+    r  = requests.get(("https://letterboxd.com/"+USER+ "/films/page/" + str(cnt) + "/"))
+    soup = BeautifulSoup(r.text, 'lxml')
+    str_match = str(soup)
+
+    start_time = time.time()
+    requests_session = requests.Session()
+    print(requests_session)
+
+    print("Logging in " + USER)
+
+    while "Sorry, we can’t find the page" in str_match:
+        print("There is no user named ", USER, ".")
+        USER = input('Insert your Letterboxd username: ')
         cnt = 1;
         r  = requests.get(("https://letterboxd.com/"+USER+ "/films/page/" + str(cnt) + "/"))
         soup = BeautifulSoup(r.text, 'lxml')
         str_match = str(soup)
 
-        start_time = time.time()
-        requests_session = requests.Session()
-        print(requests_session)
+    print("Fetching data...")
+    
+    while str_match.find('poster-container') != -1 :
+        cnt=cnt + 1
+        r  = requests.get("https://letterboxd.com/"+USER+ "/films/page/" + str(cnt) + "/")
+        soup = BeautifulSoup(r.text, 'lxml')
+        str_match = str(soup)
 
-        print("Logging in " + USER)
+    for i in range(1,cnt):
+        st = str( ("https://letterboxd.com/"+USER+ "/films/page/" + str(i) + "/"))
+        getFilms(st)
+        i=i+1
+        #start_time = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+        fat_list = executor.map(scraper, url_list, repeat(requests_session))
+            
+    # print general stats
+    filmsNum = len(url_list)
+    print("\nFilms watched: " + str(filmsNum))
+    hrs = sum(fat_list) / 60
+    dys = hrs/24
 
-        while "Sorry, we can’t find the page" in str_match:
-                print("There is no user named ", USER, ".")
-                USER = input('Insert your Letterboxd username: ')
-                cnt = 1;
-                r  = requests.get(("https://letterboxd.com/"+USER+ "/films/page/" + str(cnt) + "/"))
-                soup = BeautifulSoup(r.text, 'lxml')
-                str_match = str(soup)
+    # update ui
+    lock.acquire()
+    gui_watched1 = "Films watched: " + str(filmsNum)
+    gui_watched2 ="Total running time: " + "%.2f" %hrs + " hours (%.2f" %dys + " days)"
 
-        print("Fetching data...")
-        
-        while str_match.find('poster-container') != -1 :
-                cnt=cnt + 1
-                r  = requests.get("https://letterboxd.com/"+USER+ "/films/page/" + str(cnt) + "/")
-                soup = BeautifulSoup(r.text, 'lxml')
-                str_match = str(soup)
+    lock.release()
 
-        for i in range(1,cnt):
-                st = str( ("https://letterboxd.com/"+USER+ "/films/page/" + str(i) + "/"))
-                getFilms(st)
-                i=i+1
-                #start_time = time.time()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
-                fat_list = executor.map(scraper, url_list, repeat(requests_session))
-                
-        # print general stats
-        filmsNum = len(url_list)
-        print("\nFilms watched: " + str(filmsNum))
-        hrs = sum(fat_list) / 60
-        dys = hrs/24
+    print("Note: one film can have multiple languages and/or countries, so the sum of all percentages may be more than 100%.\n")
 
-        # update ui
-        lock.acquire()
-        gui_watched1 = "Films watched: " + str(filmsNum)
-        gui_watched2 ="Total running time: " + "%.2f" %hrs + " hours (%.2f" %dys + " days)"
+    # print languages
+    sortedLangValues = sorted(langDict.values(), reverse=True)
+    sortedLang = dict(sorted(langDict.items(),key=lambda x:x[1],reverse = True))
 
-        lock.release()
- 
-        print("Note: one film can have multiple languages and/or countries, so the sum of all percentages may be more than 100%.\n")
+    spacing = 20
+    cnt = 0
+    for i in langDict.keys():
+        if LIST_DELIM != -1:
+            cnt = cnt + 1
+            if cnt > LIST_DELIM:
+                break
+        if len(i) >= spacing:
+            spacing = len(i)+1
 
-        # print languages
-        sortedLangValues = sorted(langDict.values(), reverse=True)
-        sortedLang = dict(sorted(langDict.items(),key=lambda x:x[1],reverse = True))
-
-        spacing = 20
-        cnt = 0
-        for i in langDict.keys():
+    lock.acquire()  
+    print(f"{'Language':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    gui_lang = "Language\tFilms\tPercentage\n\n"
+    gui_lang_list.append("Language\tFilms\tPercentage\n\n")
+    lock.release()
+    cnt = 0
+    for k, v in sortedLang.items():
             if LIST_DELIM != -1:
-                cnt = cnt + 1
-                if cnt > LIST_DELIM:
-                    break
-            if len(i) >= spacing:
-                spacing = len(i)+1
-
-        lock.acquire()  
-        print(f"{'Language':<{spacing}}{'Films':>10}{'Percentage':>15}")
-        gui_lang = "Language\tFilms\tPercentage\n\n"
-        gui_lang_list.append("Language\tFilms\tPercentage\n\n")
-        lock.release()
-        cnt = 0
-        for k, v in sortedLang.items():
-                if LIST_DELIM != -1:
-                        cnt = cnt+1
-                        if cnt > LIST_DELIM:
-                                break
-                percent = format(v/filmsNum*100, ".2f") + "%"
-                print(f"{k:<{spacing}}{v:>10}{percent:>15}")
-                lock.acquire()
-                gui_lang += k + "\t" + str(v) + "\t" + percent + "\n"
-                gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
-
-                # populate model inside of listView
-                model2.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
-                
-                lock.release()
-        
-        # print countries
-        print("")
-        sortedCountryValues = sorted(countryDict.values(), reverse=True)
-        sortedCountry = dict(sorted(countryDict.items(),key=lambda x:x[1],reverse = True))
-
-        spacing = 20
-        cnt = 0
-        for i in countryDict.keys():
-            if LIST_DELIM != -1:
-                cnt = cnt + 1
-                if cnt > LIST_DELIM:
-                    break
-            if len(i) >= spacing:
-                spacing = len(i)+1
-                
-        print(f"{'Country':<{spacing}}{'Films':>10}{'Percentage':>15}")
-        lock.acquire()
-        gui_countries = "Country\tFilms\tPercentage\n\n"
-        lock.release()
-        
-        cnt = 0
-        for k, v in sortedCountry.items():
-            if LIST_DELIM != -1:
-                cnt = cnt+1
-                if cnt > LIST_DELIM:
-                    break
+                    cnt = cnt+1
+                    if cnt > LIST_DELIM:
+                            break
             percent = format(v/filmsNum*100, ".2f") + "%"
             print(f"{k:<{spacing}}{v:>10}{percent:>15}")
             lock.acquire()
-            gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
+            gui_lang += k + "\t" + str(v) + "\t" + percent + "\n"
+            gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
 
             # populate model inside of listView
-            model1.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+            model2.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
             
             lock.release()
+    
+    # print countries
+    print("")
+    sortedCountryValues = sorted(countryDict.values(), reverse=True)
+    sortedCountry = dict(sorted(countryDict.items(),key=lambda x:x[1],reverse = True))
 
-        # print genres
-        print("")
-        sortedGenreValues = sorted(genreDict.values(), reverse=True)
-        sortedGenre = dict(sorted(genreDict.items(),key=lambda x:x[1],reverse = True))
+    spacing = 20
+    cnt = 0
+    for i in countryDict.keys():
+        if LIST_DELIM != -1:
+            cnt = cnt + 1
+            if cnt > LIST_DELIM:
+                break
+        if len(i) >= spacing:
+            spacing = len(i)+1
+            
+    print(f"{'Country':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    lock.acquire()
+    gui_countries = "Country\tFilms\tPercentage\n\n"
+    lock.release()
+    
+    cnt = 0
+    for k, v in sortedCountry.items():
+        if LIST_DELIM != -1:
+            cnt = cnt+1
+            if cnt > LIST_DELIM:
+                break
+        percent = format(v/filmsNum*100, ".2f") + "%"
+        print(f"{k:<{spacing}}{v:>10}{percent:>15}")
+        lock.acquire()
+        gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
 
-        spacing = 20
-        cnt = 0
-        for i in genreDict.keys():
+        # populate model inside of listView
+        model1.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+        
+        lock.release()
+
+    # print genres
+    print("")
+    sortedGenreValues = sorted(genreDict.values(), reverse=True)
+    sortedGenre = dict(sorted(genreDict.items(),key=lambda x:x[1],reverse = True))
+
+    spacing = 20
+    cnt = 0
+    for i in genreDict.keys():
+        if LIST_DELIM != -1:
+            cnt = cnt + 1
+            if cnt > LIST_DELIM:
+                break
+        if len(i) >= spacing:
+            spacing = len(i)+1
+            
+    print(f"{'Genre':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    cnt = 0
+    for k, v in sortedGenre.items():
             if LIST_DELIM != -1:
-                cnt = cnt + 1
-                if cnt > LIST_DELIM:
-                    break
-            if len(i) >= spacing:
-                spacing = len(i)+1
-                
-        print(f"{'Genre':<{spacing}}{'Films':>10}{'Percentage':>15}")
-        cnt = 0
-        for k, v in sortedGenre.items():
-                if LIST_DELIM != -1:
-                        cnt = cnt+1
-                        if cnt > LIST_DELIM:
-                                break
-                percent = format(v/filmsNum*100, ".2f") + "%"
-                print(f"{k:<{spacing}}{v:>10}{percent:>15}")
+                    cnt = cnt+1
+                    if cnt > LIST_DELIM:
+                            break
+            percent = format(v/filmsNum*100, ".2f") + "%"
+            print(f"{k:<{spacing}}{v:>10}{percent:>15}")
 
-                # populate model inside of listView
-                model3.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+            # populate model inside of listView
+            model3.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
 
-        # print directors
-        print("")
-        sortedDirectorValues = sorted(directorDict.values(), reverse=True)
-        sortedDirector = dict(sorted(directorDict.items(),key=lambda x:x[1],reverse = True))
+    # print directors
+    print("")
+    sortedDirectorValues = sorted(directorDict.values(), reverse=True)
+    sortedDirector = dict(sorted(directorDict.items(),key=lambda x:x[1],reverse = True))
 
-        spacing = 20
-        cnt = 0
-        for i in directorDict.keys():
+    spacing = 20
+    cnt = 0
+    for i in directorDict.keys():
+        if LIST_DELIM != -1:
+            cnt = cnt + 1
+            if cnt > LIST_DELIM:
+                break
+        if len(i) >= spacing:
+            spacing = len(i)+1
+            
+    print(f"{'Director':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    cnt = 0
+    for k, v in sortedDirector.items():
             if LIST_DELIM != -1:
-                cnt = cnt + 1
-                if cnt > LIST_DELIM:
-                    break
-            if len(i) >= spacing:
-                spacing = len(i)+1
-                
-        print(f"{'Director':<{spacing}}{'Films':>10}{'Percentage':>15}")
-        cnt = 0
-        for k, v in sortedDirector.items():
-                if LIST_DELIM != -1:
-                        cnt = cnt+1
-                        if cnt > LIST_DELIM:
-                                break
-                percent = format(v/filmsNum*100, ".2f") + "%"
-                print(f"{k:<{spacing}}{v:>10}{percent:>15}")
+                    cnt = cnt+1
+                    if cnt > LIST_DELIM:
+                            break
+            percent = format(v/filmsNum*100, ".2f") + "%"
+            print(f"{k:<{spacing}}{v:>10}{percent:>15}")
 
-                # populate model inside of listView
-                model4.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+            # populate model inside of listView
+            model4.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
 
-        # print actors
-        print("")
-        sortedActorValues = sorted(actorDict.values(), reverse=True)
-        sortedActor = dict(sorted(actorDict.items(),key=lambda x:x[1],reverse = True))
+    # print actors
+    print("")
+    sortedActorValues = sorted(actorDict.values(), reverse=True)
+    sortedActor = dict(sorted(actorDict.items(),key=lambda x:x[1],reverse = True))
 
-        spacing = 20
-        cnt = 0
-        for i in actorDict.keys():
+    spacing = 20
+    cnt = 0
+    for i in actorDict.keys():
+        if LIST_DELIM != -1:
+            cnt = cnt + 1
+            if cnt > LIST_DELIM:
+                break
+        if len(i) >= spacing:
+            spacing = len(i)+1
+            
+    print(f"{'Actor':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    cnt = 0
+    for k, v in sortedActor.items():
             if LIST_DELIM != -1:
-                cnt = cnt + 1
-                if cnt > LIST_DELIM:
-                    break
-            if len(i) >= spacing:
-                spacing = len(i)+1
-                
-        print(f"{'Actor':<{spacing}}{'Films':>10}{'Percentage':>15}")
-        cnt = 0
-        for k, v in sortedActor.items():
-                if LIST_DELIM != -1:
-                        cnt = cnt+1
-                        if cnt > LIST_DELIM:
-                                break
-                percent = format(v/filmsNum*100, ".2f") + "%"
-                print(f"{k:<{spacing}}{v:>10}{percent:>15}")
+                    cnt = cnt+1
+                    if cnt > LIST_DELIM:
+                            break
+            percent = format(v/filmsNum*100, ".2f") + "%"
+            print(f"{k:<{spacing}}{v:>10}{percent:>15}")
 
-                # populate model inside of listView
-                model5.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+            # populate model inside of listView
+            model5.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
 
-        # print script stats
-        print("\nScraping time: %.2f seconds." % (time.time() - start_time))
+    # print script stats
+    print("\nScraping time: %.2f seconds." % (time.time() - start_time))
+##    print("MAX TIME 1: %.2f seconds." % DEBUG_TIME_1)
+##    print("TOT TIME 1: %.2f seconds." % TOT_TIME_1)
+##    print("MAX TIME 2: %.2f seconds." % DEBUG_TIME_2)
+##    print("TOT TIME 2: %.2f seconds." % TOT_TIME_2)
+##    print("MAX TIME 3: %.2f seconds." % DEBUG_TIME_3)
+##    print("TOT TIME 3: %.2f seconds." % TOT_TIME_3)
 
-        with open("lboxd.csv", "w", encoding="UTF8") as f:
-                writer = csv.writer(f)
-                writer.writerow(sortedLang.keys())
-                writer.writerow(sortedLang.values())
+    with open("lboxd.csv", "w", encoding="UTF8") as f:
+            writer = csv.writer(f)
+            writer.writerow(sortedLang.keys())
+            writer.writerow(sortedLang.values())
 
 def refresher_thread(watched, lang, langBox, countries, countriesBox):
-        langBox.repeat(1000, refresher)
+    langBox.repeat(1000, refresher)
 
 def refresher():
-        watched.value = gui_watched
-        lang.value = gui_lang
-        countries.value = gui_countries
-        if lang.value != "":
-            langBox.visible = True
-        if countries.value != "":
-            countriesBox.visible = True
+    watched.value = gui_watched
+    lang.value = gui_lang
+    countries.value = gui_countries
+    if lang.value != "":
+        langBox.visible = True
+    if countries.value != "":
+        countriesBox.visible = True
 
 class LoginThread(QThread):
-        doneSignal = pyqtSignal()
+    doneSignal = pyqtSignal()
 
-        def __init__(self, login):
-                super().__init__()
-                self.login = login
+    def __init__(self, login):
+            super().__init__()
+            self.login = login
 
-        def run(self):
-                login(self.login)  
-                self.doneSignal.emit()
+    def run(self):
+            login(self.login)  
+            self.doneSignal.emit()
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
-        def __init__(self, *args, obj=None, **kwargs):
-                super(MainWindow, self).__init__(*args, **kwargs)
-                self.setupUi(self)
+    def __init__(self, *args, obj=None, **kwargs):
+        super(MainWindow, self).__init__(*args, **kwargs)
+        self.setupUi(self)
 
-                global MAX_THREADS
+        global MAX_THREADS
 
-                # create results window
-                self.dialog = QtWidgets.QDialog(self)
-                self.ui = Ui_Dialog()
-                self.ui.setupUi(self.dialog)
+        # create results window
+        self.dialog = QtWidgets.QDialog(self)
+        self.ui = Ui_Dialog()
+        self.ui.setupUi(self.dialog)
 
-                self.change_settings_action = QAction("Change settings", self)
-                self.change_settings_action.triggered.connect(self.open_settings_dialog)
-                self.menuOptions.addAction(self.change_settings_action)
+        self.change_settings_action = QAction("Change settings", self)
+        self.change_settings_action.triggered.connect(self.open_settings_dialog)
+        self.menuOptions.addAction(self.change_settings_action)
 
-                # set pictures (logos)
-                self.logo = QPixmap(resource_path('gfx/logo.png'))
-                self.logoSmaller = QPixmap(resource_path('gfx/logoSmaller.png'))
-                self.label.setPixmap(self.logo)
-                self.ui.label_logo.setPixmap(self.logoSmaller)
+        # set pictures (logos)
+        self.logo = QPixmap(resource_path('gfx/logo.png'))
+        self.logoSmaller = QPixmap(resource_path('gfx/logoSmaller.png'))
+        self.label.setPixmap(self.logo)
+        self.ui.label_logo.setPixmap(self.logoSmaller)
+        
+        self.loginInput = None
+        self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.pushButton.clicked.connect(self.analyze)
+
+        # read config file
+        if os.path.exists(resource_path('cfg/config.txt')):
+            with open(resource_path('cfg/config.txt')) as f:
+                first_line = f.readline().strip('\n')
+                f.close()
+
+            print("Config file found.")
+            splittedLine = first_line.split(':')
+            if splittedLine[0] == 'workerThreadsNumber':
+                MAX_THREADS = int(splittedLine[1])
+                print("First line read.")
+
+        else:
+            f = open(resource_path('cfg/config.txt'), 'w')
+            f.write("workerThreadsNumber:20")
+            f.close()
+            print("Config file created.")
                 
-                self.loginInput = None
-                self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-                self.pushButton.clicked.connect(self.analyze)
+    def analyze(self):
+        # change button text
+        self.pushButton.setEnabled(False)
+        self.pushButton.setText("Analyzing...")
+        
+        self.loginInput = self.lineEdit.text()
+        print("Name: " + self.loginInput)
 
-                # read config file
-                if os.path.exists(resource_path('cfg/config.txt')):
-                    with open(resource_path('cfg/config.txt')) as f:
-                        first_line = f.readline().strip('\n')
-                        f.close()
+        # run login function inside of a thread
+        self.thread = LoginThread(self.loginInput)
+        self.thread.doneSignal.connect(self.loginComplete)
+        self.thread.start()
 
-                    print("Config file found.")
-                    splittedLine = first_line.split(':')
-                    if splittedLine[0] == 'workerThreadsNumber':
-                        MAX_THREADS = int(splittedLine[1])
-                        print("First line read.")
+    def open_settings_dialog(self):
+        global MAX_THREADS
+        
+        # create settings window
+        self.dialogSettings = QtWidgets.QDialog(self)
+        self.settings = Ui_Dialog_Settings()
+        self.settings.setupUi(self.dialogSettings)
+        self.settings.spinBox.setValue(int(MAX_THREADS))
+        print("Max threads1: " + str(MAX_THREADS))
 
-                else:
-                    f = open(resource_path('cfg/config.txt'), 'w')
-                    f.write("workerThreadsNumber:20")
-                    f.close()
-                    print("Config file created.")
-                    
-        def analyze(self):
-                # change button text
-                self.pushButton.setEnabled(False)
-                self.pushButton.setText("Analyzing...")
-                
-                self.loginInput = self.lineEdit.text()
-                print("Name: " + self.loginInput)
+        # this is executed when the Save button is pressed
+        def save():
+            global MAX_THREADS
+            
+            MAX_THREADS = self.settings.spinBox.value()
+            f = open(resource_path('cfg/config.txt'), 'w')
+            f.write("workerThreadsNumber:" + str(MAX_THREADS))
+            f.close()
+            print("Max threads2: " + str(MAX_THREADS))
 
-                # run login function inside of a thread
-                self.thread = LoginThread(self.loginInput)
-                self.thread.doneSignal.connect(self.loginComplete)
-                self.thread.start()
+        self.settings.save_button = QtWidgets.QDialogButtonBox.StandardButton.Save
+        self.dialogSettings.accepted.connect(save)
+        
+        self.dialogSettings.show()
 
-        def open_settings_dialog(self):
-                global MAX_THREADS
-                
-                # create settings window
-                self.dialogSettings = QtWidgets.QDialog(self)
-                self.settings = Ui_Dialog_Settings()
-                self.settings.setupUi(self.dialogSettings)
-                self.settings.spinBox.setValue(int(MAX_THREADS))
-                print("Max threads1: " + str(MAX_THREADS))
+    def loginComplete(self):
+        self.pushButton.setText("Done")
 
-                # this is executed when the Save button is pressed
-                def save():
-                    global MAX_THREADS
-                    
-                    MAX_THREADS = self.settings.spinBox.value()
-                    f = open(resource_path('cfg/config.txt'), 'w')
-                    f.write("workerThreadsNumber:" + str(MAX_THREADS))
-                    f.close()
-                    print("Max threads2: " + str(MAX_THREADS))
+        self.ui.label_username.setText("User: " + self.loginInput)
+        self.ui.label_results.setText(gui_watched1)
+        self.ui.label_results2.setText(gui_watched2)
 
-                self.settings.save_button = QtWidgets.QDialogButtonBox.StandardButton.Save
-                self.dialogSettings.accepted.connect(save)
-                
-                self.dialogSettings.show()
+        # top left tableview
+        self.ui.tableView_1.setModel(model1)
+        self.header1 = self.ui.tableView_1.horizontalHeader()       
+        self.header1.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header1.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.header1.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-        def loginComplete(self):
-                self.pushButton.setText("Done")
+        # top center tableview
+        self.ui.tableView_2.setModel(model2)
+        self.header2 = self.ui.tableView_2.horizontalHeader()       
+        self.header2.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header2.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.header2.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-                self.ui.label_username.setText("User: " + self.loginInput)
-                self.ui.label_results.setText(gui_watched1)
-                self.ui.label_results2.setText(gui_watched2)
+        # top right tableview
+        self.ui.tableView_3.setModel(model3)
+        self.header3 = self.ui.tableView_3.horizontalHeader()       
+        self.header3.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header3.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.header3.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-                # top left tableview
-                self.ui.tableView_1.setModel(model1)
-                self.header1 = self.ui.tableView_1.horizontalHeader()       
-                self.header1.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-                self.header1.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-                self.header1.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        # bottom left tableview
+        self.ui.tableView_botLeft.setModel(model4)
+        self.header4 = self.ui.tableView_botLeft.horizontalHeader()       
+        self.header4.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header4.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.header4.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-                # top center tableview
-                self.ui.tableView_2.setModel(model2)
-                self.header2 = self.ui.tableView_2.horizontalHeader()       
-                self.header2.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-                self.header2.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-                self.header2.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        # bottom center tableview
+        self.ui.tableView_botCenter.setModel(model5)
+        self.header5 = self.ui.tableView_botCenter.horizontalHeader()       
+        self.header5.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header5.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.header5.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-                # top right tableview
-                self.ui.tableView_3.setModel(model3)
-                self.header3 = self.ui.tableView_3.horizontalHeader()       
-                self.header3.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-                self.header3.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-                self.header3.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-
-                # bottom left tableview
-                self.ui.tableView_botLeft.setModel(model4)
-                self.header4 = self.ui.tableView_botLeft.horizontalHeader()       
-                self.header4.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-                self.header4.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-                self.header4.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-
-                # bottom center tableview
-                self.ui.tableView_botCenter.setModel(model5)
-                self.header5 = self.ui.tableView_botCenter.horizontalHeader()       
-                self.header5.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-                self.header5.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-                self.header5.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-
-                self.dialog.show()
+        self.dialog.show()
 
 app = QtWidgets.QApplication(sys.argv)
 
