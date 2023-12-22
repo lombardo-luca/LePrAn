@@ -7,7 +7,7 @@ import os.path
 import threading 
 import concurrent.futures
 import csv
-import cchardet as chardet
+##import cchardet as chardet
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
@@ -304,6 +304,10 @@ def scraper(url_film_page, requests_session):
         if d != -1:
                 break
 
+        d = str_match.find("modal-dialog modal", b, c)
+        if d != -1:
+                break
+
         actor = str_match[b:c]
 
         lock.acquire()
@@ -332,6 +336,10 @@ def scraper(url_film_page, requests_session):
         if d != -1:
                 break
 
+        d = str_match.find("modal-dialog modal", b, c)
+        if d != -1:
+                break
+
         actor = str_match[b:c]
 
         lock.acquire()
@@ -357,14 +365,26 @@ def getFilms(url_table_page):
     source  = requests.get(url_table_page).text
     soup = BeautifulSoup(source,'lxml')
     str_match = str(soup)
-
-    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="/film/', a) != -1): #72 film in the table
-        a = str_match.find('data-film-slug="/film/', a)
-        a=a+len('data-film-slug="/film/')
+    #debug
+    #print("Inside getFilms")
+    #print("a: " + str(a))
+    #print("len(str_match): " + str(len(str_match)))
+    #print("b: " + str(b))
+    #print("str_match.find: " + str(str_match.find('data-film-slug="', a)))
+    
+    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1): #there are 72 film in the table
+        #debug
+        #print("Inside while inside getFilms")
+        
+        a = str_match.find('data-film-slug="', a)
+        a=a+len('data-film-slug="')
         helpstring = url_ltbxd
-        while str_match[a] != '/':
+        while str_match[a] != '"':
             helpstring=helpstring+str_match[a]
             a=a+1
+        #debug
+        #print(helpstring)
+        
         url_list.append(helpstring)
         helpstring=""
         b = b+1
