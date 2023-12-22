@@ -14,7 +14,8 @@ Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about yo
 # Coming soon <sup>TM</sup>
 - More statistics
 - Graphs
-- Ability to save & load settings
+- Ability to save & load results
+- Customizable settings
 - Revamped GUI
 
 # Screenshots (alpha version)
