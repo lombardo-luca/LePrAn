@@ -9,7 +9,7 @@ Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about yo
 - Calculates the total amount of hours of film that you've watched
 - Only needs a letterboxd username to work, no login necessary
 - Full graphical interface
-- Support for multi-threading
+- Supports multi-threading
 
 # Coming soon <sup>TM</sup>
 - More statistics
