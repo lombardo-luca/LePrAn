@@ -1,4 +1,4 @@
-import sys # only needed for access to command line arguments
+import sys 
 import requests
 import re
 import time
@@ -7,7 +7,6 @@ import os.path
 import threading 
 import concurrent.futures
 import csv
-##import cchardet as chardet
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
@@ -28,7 +27,6 @@ DEBUG_TIME_2 = -1
 TOT_TIME_2 = 0
 DEBUG_TIME_3 = -1
 TOT_TIME_3 = 0
-
 
 lock = threading.Lock();
 url_list = [];
@@ -86,6 +84,7 @@ def scraper(url_film_page, requests_session):
     global TOT_TIME_1
     global TOT_TIME_2
 
+##    DEBUG CODE
 ##    sg = url_film_page.find("shin-godzilla")
 ##    if sg != -1:
 ##        print("SHIN GODZILLA FOUND")
@@ -143,7 +142,6 @@ def scraper(url_film_page, requests_session):
                 langDict[lang] = langDict[lang] + 1
         else:
                 langDict[lang] = 1
-        #print("I found the language" + lang + "in the film" + url_film_page)
         lock.release()
 
     # find countries
@@ -205,9 +203,6 @@ def scraper(url_film_page, requests_session):
     # if there are more then 2 directors
     if d != -1:   
         b = d
-
-##        if sg != -1:
-##            print("SHIN GODZILLA B VALUE PIU DI 2: " + str(b))
         
         while b != -1:
             b = str_match.find("/director", b)
@@ -228,13 +223,6 @@ def scraper(url_film_page, requests_session):
             
             director = str_match[b:c]
 
-##            anno = director.find("Anno")
-##            if anno != -1:
-##                print("FOUND ANNO" + url_film_page)
-##
-##            if sg != -1:
-##                print("SHIN GODZILLA DIRECTOR: " + director)
-
             lock.acquire()
             if director in directorDict:
                     directorDict[director] = directorDict[director] + 1
@@ -246,9 +234,6 @@ def scraper(url_film_page, requests_session):
     else:
         d = str_match.find("Directed by <a href")
         b = d
-
-##        if sg != -1:
-##            print("SHIN GODZILLA B VALUE 1 O 2: " + str(b))
         
         while b != -1:
             b = str_match.find("/director", b)
@@ -268,13 +253,6 @@ def scraper(url_film_page, requests_session):
                     break
             
             director = str_match[b:c]
-
-##            anno = director.find("Anno")
-##            if anno != -1:
-##                print("FOUND ANNO" + url_film_page)
-##
-##            if sg != -1:
-##                print("SHIN GODZILLA DIRECTOR: " + director)
 
             lock.acquire()
             if director in directorDict:
@@ -365,31 +343,20 @@ def getFilms(url_table_page):
     source  = requests.get(url_table_page).text
     soup = BeautifulSoup(source,'lxml')
     str_match = str(soup)
-    #debug
-    #print("Inside getFilms")
-    #print("a: " + str(a))
-    #print("len(str_match): " + str(len(str_match)))
-    #print("b: " + str(b))
-    #print("str_match.find: " + str(str_match.find('data-film-slug="', a)))
     
-    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1): #there are 72 film in the table
-        #debug
-        #print("Inside while inside getFilms")
-        
+    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1): #there are 72 film in the table    
         a = str_match.find('data-film-slug="', a)
         a=a+len('data-film-slug="')
         helpstring = url_ltbxd
         while str_match[a] != '"':
             helpstring=helpstring+str_match[a]
             a=a+1
-        #debug
-        #print(helpstring)
         
         url_list.append(helpstring)
         helpstring=""
         b = b+1
     
-    # debug
+    # DEBUG CODE
     #url_list.clear()
     #url_list.append("https://letterboxd.com/film/cloud-atlas/")
     #url_list.append("https://letterboxd.com/film/one-hundred-steps/")
