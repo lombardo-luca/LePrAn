@@ -5,7 +5,7 @@
 </p>
 
 
-Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about your [Letterboxd](https://letterboxd.com) profile.
+Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about your [Letterboxd](https://letterboxd.com) profile.  
 *Disclaimer: this project is a work-in-progress. While its main functionality should be working, some features are still missing and bugs are to be expected.*
 
 # Features
