@@ -1,4 +1,4 @@
-import sys 
+import sys # only needed for access to command line arguments
 import requests
 import re
 import time
@@ -7,6 +7,7 @@ import os.path
 import threading 
 import concurrent.futures
 import csv
+import cchardet as chardet
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
@@ -27,6 +28,7 @@ DEBUG_TIME_2 = -1
 TOT_TIME_2 = 0
 DEBUG_TIME_3 = -1
 TOT_TIME_3 = 0
+
 
 lock = threading.Lock();
 url_list = [];
@@ -84,10 +86,9 @@ def scraper(url_film_page, requests_session):
     global TOT_TIME_1
     global TOT_TIME_2
 
-##    DEBUG CODE
-##    sg = url_film_page.find("shin-godzilla")
-##    if sg != -1:
-##        print("SHIN GODZILLA FOUND")
+    sg = url_film_page.find("shin-godzilla")
+    if sg != -1:
+        print("SHIN GODZILLA FOUND")
 
     debug_start_1 = time.time()
     
@@ -142,6 +143,7 @@ def scraper(url_film_page, requests_session):
                 langDict[lang] = langDict[lang] + 1
         else:
                 langDict[lang] = 1
+        #print("I found the language" + lang + "in the film" + url_film_page)
         lock.release()
 
     # find countries
@@ -200,28 +202,49 @@ def scraper(url_film_page, requests_session):
     c = 0
     d = str_match.find('more-directors', 0)
     
+    # print("finding directors \n")
     # if there are more then 2 directors
     if d != -1:   
+        # print("more than 2 directors \n")
         b = d
+
+##        if sg != -1:
+##            print("SHIN GODZILLA B VALUE PIU DI 2: " + str(b))
         
         while b != -1:
             b = str_match.find("/director", b)
             if b == -1:
+                    # print("break 1")
                     break
 
-            e = str_match.find("</section>", d, b)
-            if e != -1:
-                    break
+        #     e = str_match.find("</section>", d, b)
+        #     if e != -1:
+        #             print("break 2")
+        #             break
+            e = str_match.find("</span>", b)
+            if e != -1 and e < str_match.find("</p>", b):
+                # print("break 2")
+                break
+            
             b = b + len('/director')
             b = str_match.find('/">', b)
             if b == -1:
+                    # print("break 3")
                     break
             b = b + len('/">')
             c = str_match.find('<', b)
             if c == -1:
+                    # print("break 4")
                     break
             
             director = str_match[b:c]
+
+##            anno = director.find("Anno")
+##            if anno != -1:
+##                print("FOUND ANNO" + url_film_page)
+##
+##            if sg != -1:
+##                print("SHIN GODZILLA DIRECTOR: " + director)
 
             lock.acquire()
             if director in directorDict:
@@ -232,27 +255,42 @@ def scraper(url_film_page, requests_session):
 
     # if there is only 1 or 2 directors
     else:
-        d = str_match.find("Directed by <a href")
+        d = str_match.find("Directed by </span><span")
         b = d
+
+##        if sg != -1:
+##            print("SHIN GODZILLA B VALUE 1 O 2: " + str(b))
         
         while b != -1:
             b = str_match.find("/director", b)
             if b == -1:
+                    # print("break 1")
                     break
 
             e = str_match.find("</section>", d, b)
             if e != -1:
+                    # print("break 2")
                     break
             b = b + len('/director')
             b = str_match.find('prettify">', b)
             if b == -1:
+                    # print("break 3")
                     break
             b = b + len('prettify">')
             c = str_match.find('<', b)
             if c == -1:
+                    # print("break 4")
                     break
             
             director = str_match[b:c]
+            # print(director)
+
+##            anno = director.find("Anno")
+##            if anno != -1:
+##                print("FOUND ANNO" + url_film_page)
+##
+##            if sg != -1:
+##                print("SHIN GODZILLA DIRECTOR: " + director)
 
             lock.acquire()
             if director in directorDict:
@@ -260,7 +298,7 @@ def scraper(url_film_page, requests_session):
             else:
                     directorDict[director] = 1
             lock.release()
-
+    
     # find actors
     b = 0
     c = 0
@@ -268,31 +306,32 @@ def scraper(url_film_page, requests_session):
     while found == 0:
         b = str_match.find('cast-list text-sluglist">', b)
         if b == -1:
-                break
-        b = b + len('cast-list text-sluglist">')
+            break
+        b += len('cast-list text-sluglist">')
         b = str_match.find('">', b)
         if b == -1:
-                break
-        b = b + len('">')
+            break
+        b += len('">')
         c = str_match.find('</', b)
         if c == -1:
-                break
+            break
 
         d = str_match.find("remove-ads-modal", b, c)
         if d != -1:
-                break
+            b = c
+            continue
 
-        d = str_match.find("modal-dialog modal", b, c)
-        if d != -1:
-                break
-
-        actor = str_match[b:c]
+        actor = str_match[b:c].strip()
+        # Skip if the extracted string contains HTML tags
+        if '<' in actor or '>' in actor:
+            b = c
+            continue
 
         lock.acquire()
         if actor in actorDict:
-                actorDict[actor] = actorDict[actor] + 1
+            actorDict[actor] += 1
         else:
-                actorDict[actor] = 1
+            actorDict[actor] = 1
         lock.release()
 
         found = 1
@@ -300,36 +339,37 @@ def scraper(url_film_page, requests_session):
     while found == 1 and b != -1 and c != -1:
         b = str_match.find('/actor/', b)
         if b == -1:
-                break
-        b = b + len('/actor/')
+            break
+        b += len('/actor/')
         b = str_match.find('">', b)
         if b == -1:
-                break
-        b = b + len('">')
+            break
+        b += len('">')
         c = str_match.find('</', b)
         if c == -1:
-                break
+            break
 
         d = str_match.find("remove-ads-modal", b, c)
         if d != -1:
-                break
+            b = c
+            continue
 
-        d = str_match.find("modal-dialog modal", b, c)
-        if d != -1:
-                break
-
-        actor = str_match[b:c]
+        actor = str_match[b:c].strip()
+        # Again, skip if it appears to contain HTML tags
+        if '<' in actor or '>' in actor:
+            b = c
+            continue
 
         lock.acquire()
         if actor in actorDict:
-                actorDict[actor] = actorDict[actor] + 1
+            actorDict[actor] += 1
         else:
-                actorDict[actor] = 1
+            actorDict[actor] = 1
         lock.release()
 
     # return runtime
     try:
-        ret = int(''.join(map(str,re.findall('\d*\.?\d+',str_match[a:a+20]))))
+        ret = int(''.join(map(str,re.findall(r'\d*\.?\d+',str_match[a:a+20]))))
         return ret
     except:
         return 0
@@ -343,24 +383,27 @@ def getFilms(url_table_page):
     source  = requests.get(url_table_page).text
     soup = BeautifulSoup(source,'lxml')
     str_match = str(soup)
-    
-    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1): #there are 72 film in the table    
+
+    while(a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1): # there are 72 elements in the "film" page (12x6 table)
         a = str_match.find('data-film-slug="', a)
         a=a+len('data-film-slug="')
         helpstring = url_ltbxd
         while str_match[a] != '"':
             helpstring=helpstring+str_match[a]
             a=a+1
-        
+        #     print(helpstring)
+        #     print("\n")
         url_list.append(helpstring)
+        # print(helpstring)
+        # print("\n")
         helpstring=""
         b = b+1
     
-    # DEBUG CODE
-    #url_list.clear()
-    #url_list.append("https://letterboxd.com/film/cloud-atlas/")
-    #url_list.append("https://letterboxd.com/film/one-hundred-steps/")
-    #url_list.append("https://letterboxd.com/film/the-banshees-of-inisherin/")
+    # debug
+#     url_list.clear()
+#     url_list.append("https://letterboxd.com/film/cloud-atlas/")
+#     url_list.append("https://letterboxd.com/film/one-hundred-steps/")
+#     url_list.append("https://letterboxd.com/film/the-banshees-of-inisherin/")
 
 def login(USER):
     global gui_watched1
