@@ -86,9 +86,9 @@ def scraper(url_film_page, requests_session):
     global TOT_TIME_1
     global TOT_TIME_2
 
-    sg = url_film_page.find("shin-godzilla")
-    if sg != -1:
-        print("SHIN GODZILLA FOUND")
+    # sg = url_film_page.find("shin-godzilla")
+    # if sg != -1:
+    #     print("SHIN GODZILLA FOUND")
 
     debug_start_1 = time.time()
     
