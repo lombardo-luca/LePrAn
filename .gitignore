@@ -4,3 +4,7 @@ Qt/
 test/
 Graphics/
 __pycache__
+to-do.txt
+setup.bat
+*.csv
+*.xlsx
