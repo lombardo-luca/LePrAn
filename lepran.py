@@ -17,6 +17,7 @@ from Dialog2 import Ui_Dialog
 from Settings import Ui_Dialog as Ui_Dialog_Settings
 from bs4 import BeautifulSoup
 from itertools import repeat
+from collections import defaultdict
 
 MAX_THREADS = 20
 LIST_DELIM = 200
@@ -36,12 +37,14 @@ countryDict = {}
 genreDict = {}
 directorDict = {}
 actorDict = {}
+decadeDict = defaultdict(int)
 
 gui_watched1 = ""
 gui_watched2 = ""
 gui_lang = ""
 gui_lang_list = []
 gui_countries = ""
+gui_decades = ""
 
 if getattr(sys, 'frozen', False):
     absolute_path = sys._MEIPASS
@@ -89,6 +92,17 @@ def scraper(url_film_page, requests_session):
         TOT_TIME_1 += end_time_1
         if end_time_1 >= DEBUG_TIME_1:
             DEBUG_TIME_1 = end_time_1
+
+    # find release year
+    release_year_match = re.search(r'data\.production\.releaseYear\s*=\s*(\d{4})', str_match)
+    if release_year_match:
+        try:
+            year_found = int(release_year_match.group(1))
+            decade = f"{year_found // 10 * 10}s"
+            with lock:
+                decadeDict[decade] += 1
+        except ValueError:
+            pass
 
     # find runtime
     a = str_match.find('text-link text-footer">') + len('text-link text-footer">')
@@ -395,6 +409,17 @@ def login(USER):
         percent = format(v / filmsNum * 100, ".2f") + "%"
         print(f"{k:<{spacing}}{v:>10}{percent:>15}")
         model5.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+        
+    sortedDecades = dict(sorted(decadeDict.items(), key=lambda x: x[1], reverse=True))
+    spacing = max([len(i) for i in decadeDict.keys()] + [20]) + 1 if decadeDict else 21
+    print(f"\n{'Decade':<{spacing}}{'Films':>10}{'Percentage':>15}")
+    cnt_decade = 0
+    for k, v in sortedDecades.items():
+        cnt_decade += 1
+        if LIST_DELIM != -1 and cnt_decade > LIST_DELIM:
+            break
+        percent = format(v / filmsNum * 100, ".2f") + "%"
+        print(f"{k:<{spacing}}{v:>10}{percent:>15}")
     
     print("\nScraping time: %.2f seconds." % (time.time() - start_time))
     
@@ -410,6 +435,7 @@ def refresher():
     watched.value = gui_watched
     lang.value = gui_lang
     countries.value = gui_countries
+    decades.value = gui_decades
     if lang.value != "":
         langBox.visible = True
     if countries.value != "":
@@ -469,19 +495,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 
     def analyze(self):
         # reset globals for new search
-        global url_list, langDict, countryDict, genreDict, directorDict, actorDict
-        global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries
+        global url_list, langDict, countryDict, genreDict, directorDict, actorDict, decadeDict
+        global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries, gui_decades
         url_list = []
         langDict = {}
         countryDict = {}
         genreDict = {}
         directorDict = {}
         actorDict = {}
+        decadeDict = defaultdict(int)
         gui_watched1 = ""
         gui_watched2 = ""
         gui_lang = ""
         gui_lang_list = []
         gui_countries = ""
+        gui_decades = ""
         
         # clear all models
         model1.removeRows(0, model1.rowCount())
