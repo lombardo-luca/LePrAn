@@ -142,7 +142,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "LePrAn - Alpha 1.2"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "LePrAn - Alpha 1.3"))
         self.label.setText(_translate("MainWindow", "LePrAn"))
         self.label_2.setText(_translate("MainWindow", "Letterboxd Profile Analyzer"))
         self.label_3.setText(_translate("MainWindow", "Insert your Letterboxd username:"))

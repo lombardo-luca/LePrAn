@@ -321,7 +321,7 @@ def login(USER):
     
     print("Note: one film can have multiple languages and/or countries, so the sum of all percentages may be more than 100%.\n")
     
-    # Process Languages
+    # Process languages
     sortedLang = dict(sorted(langDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in langDict.keys()] + [20]) + 1 if langDict else 21
     print(f"{'Language':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -340,7 +340,7 @@ def login(USER):
             gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
             model2.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
     
-    # Process Countries
+    # Process countries
     sortedCountry = dict(sorted(countryDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in countryDict.keys()] + [20]) + 1 if countryDict else 21
     print(f"\n{'Country':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -357,7 +357,7 @@ def login(USER):
             gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
             model1.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
     
-    # Process Genres
+    # process genres
     sortedGenre = dict(sorted(genreDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in genreDict.keys()] + [20]) + 1 if genreDict else 21
     print(f"\n{'Genre':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -370,7 +370,7 @@ def login(USER):
         print(f"{k:<{spacing}}{v:>10}{percent:>15}")
         model3.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
     
-    # Process Directors
+    # process directors
     sortedDirector = dict(sorted(directorDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in directorDict.keys()] + [20]) + 1 if directorDict else 21
     print(f"\n{'Director':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -383,7 +383,7 @@ def login(USER):
         print(f"{k:<{spacing}}{v:>10}{percent:>15}")
         model4.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
     
-    # Process Actors
+    # process actors
     sortedActor = dict(sorted(actorDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in actorDict.keys()] + [20]) + 1 if actorDict else 21
     print(f"\n{'Actor':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -398,10 +398,10 @@ def login(USER):
     
     print("\nScraping time: %.2f seconds." % (time.time() - start_time))
     
-    with open("lboxd.csv", "w", encoding="UTF8") as f:
-        writer = csv.writer(f)
-        writer.writerow(sortedLang.keys())
-        writer.writerow(sortedLang.values())
+    # with open("lboxd.csv", "w", encoding="UTF8") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(sortedLang.keys())
+    #     writer.writerow(sortedLang.values())
 
 def refresher_thread(watched, lang, langBox, countries, countriesBox):
     langBox.repeat(1000, refresher)
@@ -468,7 +468,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Config file created.")
                 
     def analyze(self):
-        # Reset globals for new search
+        # reset globals for new search
         global url_list, langDict, countryDict, genreDict, directorDict, actorDict
         global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries
         url_list = []
@@ -482,7 +482,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         gui_lang = ""
         gui_lang_list = []
         gui_countries = ""
-        # Clear all models
+        
+        # clear all models
         model1.removeRows(0, model1.rowCount())
         model2.removeRows(0, model2.rowCount())
         model3.removeRows(0, model3.rowCount())
@@ -518,7 +519,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dialogSettings.show()
 
     def loginComplete(self):
-        # Re-enable the Analyze button for new searches
+        # re-enable the Analyze button for new searches
         self.pushButton.setText("Analyze")
         self.pushButton.setEnabled(True)
         
