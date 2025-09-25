@@ -10,7 +10,7 @@ import csv
 import cchardet as chardet
 import json
 from PyQt6 import QtWidgets
-from PyQt6.QtWidgets import QHeaderView
+from PyQt6.QtWidgets import QHeaderView, QFileDialog
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from MainWindow import Ui_MainWindow
@@ -749,6 +749,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.pushButton.setEnabled(False)
         self.pushButton.setText("Analyzing...")
         
+        # re-enable save button for new analysis
+        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton'):
+            self.ui.pushButton.setEnabled(True)
+            self.ui.pushButton.setText("Save results")
+        
         self.loginInput = self.lineEdit.text()
         print("Name: " + self.loginInput)
 
@@ -832,6 +837,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         )
         if not file_path:
             return
+        
+        # re-enable save button for new file load
+        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton'):
+            self.ui.pushButton.setEnabled(True)
+            self.ui.pushButton.setText("Save results")
+        
         meta = load_stats_from_csv(file_path)
         # set username label from CSV contents if present; fallback to filename
         loaded_user = (meta or {}).get('username') if isinstance(meta, dict) else ''
@@ -846,8 +857,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.loginComplete()
 
     def save_results(self):
-        # save the current statistics to CSV using dialog username and scrape date
+        # open file dialog to choose save location and filename
         username = self.loginInput or "user"
+        default_filename = f"{username}.csv"
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.dialog,
+            "Save statistics CSV",
+            default_filename,
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not file_path:
+            return  # user cancelled the dialog
+        
+        # save the current statistics to CSV using dialog username and scrape date
         scraped_at = gui_scraped_at or time.strftime("%d/%m/%Y", time.localtime())
         try:
             save_stats_to_csv(
@@ -856,8 +880,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 films_count_global,
                 total_hours_global,
                 total_days_global,
-                csv_path=f"{username}.csv",
+                csv_path=file_path,
             )
+            # update button text to show success
+            self.ui.pushButton.setText("Results saved")
+            self.ui.pushButton.setEnabled(False)  # disable button after saving
         except Exception as e:
             print(f"Failed to save CSV: {e}")
 
