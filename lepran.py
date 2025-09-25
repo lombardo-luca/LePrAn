@@ -47,6 +47,12 @@ gui_lang = ""
 gui_lang_list = []
 gui_countries = ""
 gui_decades = ""
+gui_scraped_at = ""
+
+# meta values for saving
+films_count_global = 0
+total_hours_global = 0.0
+total_days_global = 0.0
 
 if getattr(sys, 'frozen', False):
     absolute_path = sys._MEIPASS
@@ -262,6 +268,203 @@ def scraper(url_film_page, requests_session):
 
     return ret
 
+# save all extracted statistics to a CSV file, with username and scrape date
+def save_stats_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path='lboxd.csv'):
+    try:
+        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['section', 'name', 'count'])
+            writer.writerow(['META', 'USER', username])
+            writer.writerow(['META', 'SCRAPED_AT', scraped_at])
+            writer.writerow(['META', 'FILMS', films_num])
+            writer.writerow(['META', 'HOURS', f"{total_hours:.6f}"])
+            writer.writerow(['META', 'DAYS', f"{total_days:.6f}"])
+
+            for k, v in langDict.items():
+                writer.writerow(['LANGUAGE', k, v])
+            for k, v in countryDict.items():
+                writer.writerow(['COUNTRY', k, v])
+            for k, v in genreDict.items():
+                writer.writerow(['GENRE', k, v])
+            for k, v in directorDict.items():
+                writer.writerow(['DIRECTOR', k, v])
+            for k, v in actorDict.items():
+                writer.writerow(['ACTOR', k, v])
+            for k, v in decadeDict.items():
+                writer.writerow(['DECADE', k, v])
+        print(f"Saved statistics to {csv_path}")
+    except Exception as e:
+        print(f"Error saving CSV: {e}")
+
+# load statistics from a CSV file into globals and rebuild GUI models
+def load_stats_from_csv(csv_path='lboxd.csv'):
+    global url_list, url_set, langDict, countryDict, genreDict, directorDict, actorDict, decadeDict
+    global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries, gui_decades, gui_scraped_at
+    global films_count_global, total_hours_global, total_days_global
+
+    # reset globals
+    url_list = []
+    url_set = set()
+    langDict = {}
+    countryDict = {}
+    genreDict = {}
+    directorDict = {}
+    actorDict = {}
+    decadeDict = defaultdict(int)
+    gui_watched1 = ""
+    gui_watched2 = ""
+    gui_lang = ""
+    gui_lang_list = []
+    gui_countries = ""
+    gui_decades = ""
+    gui_scraped_at = ""
+
+    films_num = 0
+    total_hours = 0.0
+    total_days = 0.0
+    loaded_username = ''
+    loaded_scraped_at = ''
+
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            for row in reader:
+                if len(row) < 3:
+                    continue
+                section, name, count = row[0], row[1], row[2]
+                if section == 'META':
+                    if name == 'FILMS':
+                        try:
+                            films_num = int(count)
+                        except Exception:
+                            films_num = 0
+                    elif name == 'USER':
+                        loaded_username = count
+                    elif name == 'SCRAPED_AT':
+                        loaded_scraped_at = count
+                    elif name == 'HOURS':
+                        try:
+                            total_hours = float(count)
+                        except Exception:
+                            total_hours = 0.0
+                    elif name == 'DAYS':
+                        try:
+                            total_days = float(count)
+                        except Exception:
+                            total_days = 0.0
+                elif section == 'LANGUAGE':
+                    langDict[name] = int(count)
+                elif section == 'COUNTRY':
+                    countryDict[name] = int(count)
+                elif section == 'GENRE':
+                    genreDict[name] = int(count)
+                elif section == 'DIRECTOR':
+                    directorDict[name] = int(count)
+                elif section == 'ACTOR':
+                    actorDict[name] = int(count)
+                elif section == 'DECADE':
+                    try:
+                        decadeDict[name] += int(count)
+                    except Exception:
+                        pass
+    except FileNotFoundError:
+        print(f"CSV not found: {csv_path}")
+        return
+    except Exception as e:
+        print(f"Error loading CSV: {e}")
+        return
+
+    # rebuild GUI strings and models based on loaded data
+    # clear models
+    model1.removeRows(0, model1.rowCount())
+    model2.removeRows(0, model2.rowCount())
+    model3.removeRows(0, model3.rowCount())
+    model4.removeRows(0, model4.rowCount())
+    model5.removeRows(0, model5.rowCount())
+
+    gui_watched1 = "Films watched: " + str(films_num)
+    gui_watched2 = "Total running time: " + "%.2f" % total_hours + " hours (%.2f" % total_days + " days)"
+
+    # languages
+    sortedLang = dict(sorted(langDict.items(), key=lambda x: x[1], reverse=True))
+    gui_lang = "Language\tFilms\tPercentage\n\n"
+    gui_lang_list = [gui_lang]
+    cnt_lang = 0
+    for k, v in sortedLang.items():
+        cnt_lang += 1
+        if LIST_DELIM != -1 and cnt_lang > LIST_DELIM:
+            break
+        percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+        gui_lang += k + "\t" + str(v) + "\t" + percent + "\n"
+        gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
+        model2.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+
+    # countries
+    sortedCountry = dict(sorted(countryDict.items(), key=lambda x: x[1], reverse=True))
+    gui_countries = "Country\tFilms\tPercentage\n\n"
+    cnt_country = 0
+    for k, v in sortedCountry.items():
+        cnt_country += 1
+        if LIST_DELIM != -1 and cnt_country > LIST_DELIM:
+            break
+        percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+        gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
+        model1.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+
+    # genres
+    sortedGenre = dict(sorted(genreDict.items(), key=lambda x: x[1], reverse=True))
+    cnt_genre = 0
+    for k, v in sortedGenre.items():
+        cnt_genre += 1
+        if LIST_DELIM != -1 and cnt_genre > LIST_DELIM:
+            break
+        percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+        model3.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+
+    # directors
+    sortedDirector = dict(sorted(directorDict.items(), key=lambda x: x[1], reverse=True))
+    cnt_director = 0
+    for k, v in sortedDirector.items():
+        cnt_director += 1
+        if LIST_DELIM != -1 and cnt_director > LIST_DELIM:
+            break
+        percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+        model4.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+
+    # actors
+    sortedActor = dict(sorted(actorDict.items(), key=lambda x: x[1], reverse=True))
+    cnt_actor = 0
+    for k, v in sortedActor.items():
+        cnt_actor += 1
+        if LIST_DELIM != -1 and cnt_actor > LIST_DELIM:
+            break
+        percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+        model5.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
+
+    # decades text (printed only)
+    sortedDecades = dict(sorted(decadeDict.items(), key=lambda x: x[1], reverse=True))
+    if sortedDecades:
+        print("\nDecade            Films        Percentage")
+        for k, v in sortedDecades.items():
+            percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+            print(f"{k:<20}{v:>10}{percent:>15}")
+
+    # set globals for save button usage and UI label
+    films_count_global = films_num
+    total_hours_global = total_hours
+    total_days_global = total_days
+    gui_scraped_at = loaded_scraped_at
+
+    print(f"Loaded statistics from {csv_path}")
+    return {
+        'films_num': films_num,
+        'total_hours': total_hours,
+        'total_days': total_days,
+        'username': loaded_username,
+        'scraped_at': loaded_scraped_at,
+    }
+
 # get films' url
 def getFilms(url_table_page, requests_session):
     global url_list
@@ -436,11 +639,17 @@ def login(USER):
         print(f"{k:<{spacing}}{v:>10}{percent:>15}")
     
     print("\nScraping time: %.2f seconds." % (time.time() - start_time))
+    # set meta values
+    try:
+        scraped_when = time.strftime("%d/%m/%Y", time.localtime())
+    except Exception:
+        scraped_when = ""
     
-    # with open("lboxd.csv", "w", encoding="UTF8") as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(sortedLang.keys())
-    #     writer.writerow(sortedLang.values())
+    global films_count_global, total_hours_global, total_days_global, gui_scraped_at
+    films_count_global = filmsNum
+    total_hours_global = hrs
+    total_days_global = dys
+    gui_scraped_at = scraped_when
 
 def refresher_thread(watched, lang, langBox, countries, countriesBox):
     langBox.repeat(1000, refresher)
@@ -487,10 +696,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.logoSmaller = QPixmap(resource_path('gfx/logoSmaller.png'))
         self.label.setPixmap(self.logo)
         self.ui.label_logo.setPixmap(self.logoSmaller)
+        # connect dialog save button
+        self.ui.pushButton.clicked.connect(self.save_results)
         
         self.loginInput = None
         self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.pushButton.clicked.connect(self.analyze)
+        # wire Load button to open-file CSV loader
+        self.pushButton_2.clicked.connect(self.load_from_csv)
 
         # read config file
         config_path = resource_path('cfg/config.txt')
@@ -569,6 +782,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ui.label_username.setText("User: " + self.loginInput)
         self.ui.label_results.setText(gui_watched1)
         self.ui.label_results2.setText(gui_watched2)
+        # scraped date label
+        self.ui.label_5.setText(gui_scraped_at or "-")
 
         # top left tableview (Countries)
         self.ui.tableView_1.setModel(model1)
@@ -606,6 +821,45 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.header5.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
         self.dialog.show()
+
+    def load_from_csv(self):
+        # open file dialog restricted to CSV files
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Open statistics CSV",
+            os.path.abspath('.'),
+            "CSV Files (*.csv)"
+        )
+        if not file_path:
+            return
+        meta = load_stats_from_csv(file_path)
+        # set username label from CSV contents if present; fallback to filename
+        loaded_user = (meta or {}).get('username') if isinstance(meta, dict) else ''
+        if loaded_user:
+            self.loginInput = loaded_user
+        else:
+            try:
+                self.loginInput = os.path.splitext(os.path.basename(file_path))[0]
+            except Exception:
+                self.loginInput = "(loaded)"
+        # show results dialog using existing setup
+        self.loginComplete()
+
+    def save_results(self):
+        # save the current statistics to CSV using dialog username and scrape date
+        username = self.loginInput or "user"
+        scraped_at = gui_scraped_at or time.strftime("%d/%m/%Y", time.localtime())
+        try:
+            save_stats_to_csv(
+                username,
+                scraped_at,
+                films_count_global,
+                total_hours_global,
+                total_days_global,
+                csv_path=f"{username}.csv",
+            )
+        except Exception as e:
+            print(f"Failed to save CSV: {e}")
 
 app = QtWidgets.QApplication(sys.argv)
 window = MainWindow()
