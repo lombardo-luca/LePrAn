@@ -8,13 +8,13 @@ from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView, QFileDialog
 from PyQt6.QtGui import QPixmap, QAction
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from gui_main import Ui_MainWindow
-from gui_results import Ui_Dialog
-from gui_settings import Ui_Dialog as Ui_Dialog_Settings
-from config import config
-from data_models import stats_data, gui_models
-from scraper import LetterboxdScraper
-from file_manager import FileManager
+from gui.gui_main import Ui_MainWindow
+from gui.gui_results import Ui_Dialog
+from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
+from .config import config
+from .data_models import stats_data, gui_models
+from .scraper import LetterboxdScraper
+from .file_manager import FileManager
 
 
 class LoginThread(QThread):

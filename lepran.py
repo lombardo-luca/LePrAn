@@ -4,7 +4,7 @@ Main application entry point.
 """
 import sys
 from PyQt6 import QtWidgets
-from main_window import MainWindow
+from src.main_window import MainWindow
 
 
 def main():

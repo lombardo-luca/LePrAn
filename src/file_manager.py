@@ -4,8 +4,8 @@ Handles saving and loading CSV files with statistics data.
 """
 import csv
 import time
-from data_models import stats_data, gui_models
-from config import config
+from .data_models import stats_data, gui_models
+from .config import config
 
 
 class FileManager:

@@ -9,8 +9,8 @@ import json
 import concurrent.futures
 from itertools import repeat
 from bs4 import BeautifulSoup
-from data_models import stats_data
-from config import config
+from .data_models import stats_data
+from .config import config
 
 
 class LetterboxdScraper:
