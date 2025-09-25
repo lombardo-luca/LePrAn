@@ -101,9 +101,9 @@ def scraper(url_film_page, requests_session):
     film_directors = set()
     film_actors = set()
 
-    # find release year (new layout first, then fallbacks)
+    # find release year
     year_found = None
-    # Try from visible releasedate link
+    # try from visible releasedate link
     try:
         releasedate_link = soup.select_one('span.releasedate a')
         if releasedate_link and releasedate_link.text:
@@ -157,7 +157,7 @@ def scraper(url_film_page, requests_session):
     except Exception:
         pass
 
-    # find languages (prefer new tab structure, fallback to string scan)
+    # find languages (from tab structure)
     try:
         lang_links = soup.select('#tab-details .text-sluglist a[href^="/films/language/"]')
         for a_tag in lang_links:
@@ -200,7 +200,7 @@ def scraper(url_film_page, requests_session):
     #             lang = "None"
     #         film_languages.add(lang)
 
-    # find countries (with details tab)
+    # find countries (from details tab)
     found_country = False
     try:
         country_links = soup.select('#tab-details a[href^="/films/country/"]')
@@ -234,7 +234,7 @@ def scraper(url_film_page, requests_session):
     #             country = country.partition(',')[0]
     #         film_countries.add(country)
 
-    # find genres (with genres tab)
+    # find genres (from genres tab)
     found_genre = False
     try:
         genre_links = soup.select('#tab-genres a[href^="/films/genre/"]')
@@ -268,7 +268,7 @@ def scraper(url_film_page, requests_session):
     #             genre = genre.partition(',')[0]
     #         film_genres.add(genre)
 
-    # find directors (with productioninfo/crew)
+    # find directors (from productioninfo/crew)
     found_director = False
     try:
         # production masthead credits
@@ -332,7 +332,7 @@ def scraper(url_film_page, requests_session):
     #             director = str_match[b:c]
     #             film_directors.add(director)
 
-    # find actors (with cast tab structure)
+    # find actors (from cast tab structure)
     found = 0
     try:
         cast_items = soup.select('#tab-cast .cast-list a.text-slug, .cast-list.text-sluglist a.text-slug, .cast-list a[href^="/actor/"]')
@@ -439,7 +439,7 @@ def getFilms(url_table_page, requests_session):
     source = requests_session.get(url_table_page).text
     soup = BeautifulSoup(source, 'lxml')
     
-    # new layout: posters rendered as LazyPoster react components
+    # posters rendered as LazyPoster react components
     posters = soup.select('div.react-component[data-component-class="LazyPoster"]')
     count = 0
     for comp in posters:
@@ -592,6 +592,7 @@ def login(USER):
         print(f"{k:<{spacing}}{v:>10}{percent:>15}")
         model5.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
         
+    # process decades (only GUI for now)
     sortedDecades = dict(sorted(decadeDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in decadeDict.keys()] + [20]) + 1 if decadeDict else 21
     print(f"\n{'Decade':<{spacing}}{'Films':>10}{'Percentage':>15}")
