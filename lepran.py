@@ -133,14 +133,6 @@ def scraper(url_film_page, requests_session):
                             break
         except Exception:
             pass
-    # legacy inline script pattern, can un-comment for fallback
-    # if year_found is None:
-    #     release_year_match = re.search(r'data\.production\.releaseYear\s*=\s*(\d{4})', str_match)
-    #     if release_year_match:
-    #         try:
-    #             year_found = int(release_year_match.group(1))
-    #         except ValueError:
-    #             year_found = None
     if year_found is not None:
         decade = f"{year_found // 10 * 10}s"
         with lock:
@@ -173,33 +165,7 @@ def scraper(url_film_page, requests_session):
             b = -1  # skip eventual fallback scan if we found via BS
     except Exception:
         pass
-    # legacy string scan, can un-comment for fallback
-    # if 'b' in locals() and b != -1:
-    #     b = 0
-    #     while b != -1:
-    #         b = str_match.find('/films/language/', b)
-    #         if b == -1:
-    #             break
-    #         index = max(0, b - 2000)
-    #         check_spoken = str_match[index:b]
-    #         if "Spoken Languages" in check_spoken:
-    #             b = -1
-    #             break
-    #         b += len('/films/language/')
-    #         b = str_match.find('>', b)
-    #         if b == -1:
-    #             break
-    #         b += 1
-    #         c = str_match.find('<', b)
-    #         if c == -1:
-    #             break
-    #         lang = str_match[b:c]
-    #         if ',' in lang:
-    #             lang = lang.partition(',')[0]
-    #         if lang == "No spoken language":
-    #             lang = "None"
-    #         film_languages.add(lang)
-
+   
     # find countries (from details tab)
     found_country = False
     try:
@@ -214,25 +180,6 @@ def scraper(url_film_page, requests_session):
             found_country = True
     except Exception:
         pass
-    # legacy string scan, can un-comment for fallback
-    # if not found_country:
-    #     b = 0
-    #     while b != -1:
-    #         b = str_match.find('/films/country/', b)
-    #         if b == -1:
-    #             break
-    #         b += len('/films/country/')
-    #         b = str_match.find('>', b)
-    #         if b == -1:
-    #             break
-    #         b += 1
-    #         c = str_match.find('<', b)
-    #         if c == -1:
-    #             break
-    #         country = str_match[b:c]
-    #         if ',' in country:
-    #             country = country.partition(',')[0]
-    #         film_countries.add(country)
 
     # find genres (from genres tab)
     found_genre = False
@@ -248,25 +195,6 @@ def scraper(url_film_page, requests_session):
             found_genre = True
     except Exception:
         pass
-    # legacy string scan, can un-comment for fallback
-    # if not found_genre:
-    #     b = 0
-    #     while b != -1:
-    #         b = str_match.find('/films/genre/', b)
-    #         if b == -1:
-    #             break
-    #         b += len('/films/genre/')
-    #         b = str_match.find('>', b)
-    #         if b == -1:
-    #             break
-    #         b += 1
-    #         c = str_match.find('<', b)
-    #         if c == -1:
-    #             break
-    #         genre = str_match[b:c].capitalize()
-    #         if ',' in genre:
-    #             genre = genre.partition(',')[0]
-    #         film_genres.add(genre)
 
     # find directors (from productioninfo/crew)
     found_director = False
@@ -289,48 +217,6 @@ def scraper(url_film_page, requests_session):
                     found_director = True
     except Exception:
         pass
-    # legacy string scan, can un-comment for fallback
-    # if not found_director:
-    #     d = str_match.find('more-directors', 0)
-    #     if d != -1:
-    #         b = d
-    #         while b != -1:
-    #             b = str_match.find("/director", b)
-    #             if b == -1:
-    #                 break
-    #             e = str_match.find("</span>", b)
-    #             if e != -1 and e < str_match.find("</p>", b):
-    #                 break
-    #             b += len('/director')
-    #             b = str_match.find('/">', b)
-    #             if b == -1:
-    #                 break
-    #             b += len('/">')
-    #             c = str_match.find('<', b)
-    #             if c == -1:
-    #                 break
-    #             director = str_match[b:c]
-    #             film_directors.add(director)
-    #     else:
-    #         d = str_match.find("Directed by </span><span")
-    #         b = d
-    #         while b != -1:
-    #             b = str_match.find("/director", b)
-    #             if b == -1:
-    #                 break
-    #             e = str_match.find("</section>", d, b)
-    #             if e != -1:
-    #                 break
-    #             b += len('/director')
-    #             b = str_match.find('prettify">', b)
-    #             if b == -1:
-    #                 break
-    #             b += len('prettify">')
-    #             c = str_match.find('<', b)
-    #             if c == -1:
-    #                 break
-    #             director = str_match[b:c]
-    #             film_directors.add(director)
 
     # find actors (from cast tab structure)
     found = 0
@@ -351,61 +237,6 @@ def scraper(url_film_page, requests_session):
             c = -1
     except Exception:
         pass
-    # legacy string scan, can un-comment for fallback
-    # if not found:
-    #     b = 0
-    #     while found == 0:
-    #         b = str_match.find('cast-list text-sluglist">', b)
-    #         if b == -1:
-    #             break
-    #         b += len('cast-list text-sluglist">')
-    #         b = str_match.find('">', b)
-    #         if b == -1:
-    #             break
-    #         b += len('">')
-    #         c = str_match.find('</', b)
-    #         if c == -1:
-    #             break
-    #         d = str_match.find("remove-ads-modal", b, c)
-    #         if d != -1:
-    #             b = c
-    #             continue
-    #         actor = str_match[b:c].strip()
-    #         if '<' in actor or '>' in actor:
-    #             b = c
-    #             continue
-    #         low = actor.lower()
-    #         if 'show all' in low or low.startswith('show '):
-    #             b = c
-    #             continue
-    #         film_actors.add(actor)
-    #         found = 1
-
-    #     while found == 1 and b != -1 and c != -1:
-    #         b = str_match.find('/actor/', b)
-    #         if b == -1:
-    #             break
-    #         b += len('/actor/')
-    #         b = str_match.find('">', b)
-    #         if b == -1:
-    #             break
-    #         b += len('">')
-    #         c = str_match.find('</', b)
-    #         if c == -1:
-    #             break
-    #         d = str_match.find("remove-ads-modal", b, c)
-    #         if d != -1:
-    #             b = c
-    #             continue
-    #         actor = str_match[b:c].strip()
-    #         if '<' in actor or '>' in actor:
-    #             b = c
-    #             continue
-    #         low = actor.lower()
-    #         if 'show all' in low or low.startswith('show '):
-    #             b = c
-    #             continue
-    #         film_actors.add(actor)
 
     # add per-film unique buckets to global counters
     if film_languages:
