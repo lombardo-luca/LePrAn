@@ -8,6 +8,7 @@ import threading
 import concurrent.futures
 import csv
 import cchardet as chardet
+import json
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QAction
@@ -32,6 +33,7 @@ TOT_TIME_3 = 0
 
 lock = threading.Lock()
 url_list = []
+url_set = set()
 langDict = {}
 countryDict = {}
 genreDict = {}
@@ -86,211 +88,375 @@ def scraper(url_film_page, requests_session):
     source = requests_session.get(url_film_page)
     end_time_1 = time.time() - debug_start_1
     soup = BeautifulSoup(source.content, 'lxml')
-    str_match = str(soup)
     
     with lock:
         TOT_TIME_1 += end_time_1
         if end_time_1 >= DEBUG_TIME_1:
             DEBUG_TIME_1 = end_time_1
 
-    # find release year
-    release_year_match = re.search(r'data\.production\.releaseYear\s*=\s*(\d{4})', str_match)
-    if release_year_match:
-        try:
-            year_found = int(release_year_match.group(1))
-            decade = f"{year_found // 10 * 10}s"
-            with lock:
-                decadeDict[decade] += 1
-        except ValueError:
-            pass
+    # per-film unique buckets to avoid double counting
+    film_languages = set()
+    film_countries = set()
+    film_genres = set()
+    film_directors = set()
+    film_actors = set()
 
-    # find runtime
-    a = str_match.find('text-link text-footer">') + len('text-link text-footer">')
-
-    # find languages
-    b = 0
-    while b != -1:
-        b = str_match.find('/films/language/', b)
-        if b == -1:
-            break
-        index = max(0, b - 2000)
-        check_spoken = str_match[index:b]
-        if "Spoken Languages" in check_spoken:
-            b = -1
-            break
-        b += len('/films/language/')
-        b = str_match.find('>', b)
-        if b == -1:
-            break
-        b += 1
-        c = str_match.find('<', b)
-        if c == -1:
-            break
-        lang = str_match[b:c]
-        if ',' in lang:
-            lang = lang.partition(',')[0]
-        if lang == "No spoken language":
-            lang = "None"
-        with lock:
-            langDict[lang] = langDict.get(lang, 0) + 1
-
-    # find countries
-    b = 0
-    while b != -1:
-        b = str_match.find('/films/country/', b)
-        if b == -1:
-            break
-        b += len('/films/country/')
-        b = str_match.find('>', b)
-        if b == -1:
-            break
-        b += 1
-        c = str_match.find('<', b)
-        if c == -1:
-            break
-        country = str_match[b:c]
-        if ',' in country:
-            country = country.partition(',')[0]
-        with lock:
-            countryDict[country] = countryDict.get(country, 0) + 1
-
-    # find genres
-    b = 0
-    while b != -1:
-        b = str_match.find('/films/genre/', b)
-        if b == -1:
-            break
-        b += len('/films/genre/')
-        b = str_match.find('>', b)
-        if b == -1:
-            break
-        b += 1
-        c = str_match.find('<', b)
-        if c == -1:
-            break
-        genre = str_match[b:c].capitalize()
-        if ',' in genre:
-            genre = genre.partition(',')[0]
-        with lock:
-            genreDict[genre] = genreDict.get(genre, 0) + 1
-
-    # find directors
-    d = str_match.find('more-directors', 0)
-    if d != -1:
-        b = d
-        while b != -1:
-            b = str_match.find("/director", b)
-            if b == -1:
-                break
-            e = str_match.find("</span>", b)
-            if e != -1 and e < str_match.find("</p>", b):
-                break
-            b += len('/director')
-            b = str_match.find('/">', b)
-            if b == -1:
-                break
-            b += len('/">')
-            c = str_match.find('<', b)
-            if c == -1:
-                break
-            director = str_match[b:c]
-            with lock:
-                directorDict[director] = directorDict.get(director, 0) + 1
-    else:
-        d = str_match.find("Directed by </span><span")
-        b = d
-        while b != -1:
-            b = str_match.find("/director", b)
-            if b == -1:
-                break
-            e = str_match.find("</section>", d, b)
-            if e != -1:
-                break
-            b += len('/director')
-            b = str_match.find('prettify">', b)
-            if b == -1:
-                break
-            b += len('prettify">')
-            c = str_match.find('<', b)
-            if c == -1:
-                break
-            director = str_match[b:c]
-            with lock:
-                directorDict[director] = directorDict.get(director, 0) + 1
-
-    # find actors
-    b = 0
-    found = 0
-    while found == 0:
-        b = str_match.find('cast-list text-sluglist">', b)
-        if b == -1:
-            break
-        b += len('cast-list text-sluglist">')
-        b = str_match.find('">', b)
-        if b == -1:
-            break
-        b += len('">')
-        c = str_match.find('</', b)
-        if c == -1:
-            break
-        d = str_match.find("remove-ads-modal", b, c)
-        if d != -1:
-            b = c
-            continue
-        actor = str_match[b:c].strip()
-        if '<' in actor or '>' in actor:
-            b = c
-            continue
-        with lock:
-            actorDict[actor] = actorDict.get(actor, 0) + 1
-        found = 1
-
-    while found == 1 and b != -1 and c != -1:
-        b = str_match.find('/actor/', b)
-        if b == -1:
-            break
-        b += len('/actor/')
-        b = str_match.find('">', b)
-        if b == -1:
-            break
-        b += len('">')
-        c = str_match.find('</', b)
-        if c == -1:
-            break
-        d = str_match.find("remove-ads-modal", b, c)
-        if d != -1:
-            b = c
-            continue
-        actor = str_match[b:c].strip()
-        if '<' in actor or '>' in actor:
-            b = c
-            continue
-        with lock:
-            actorDict[actor] = actorDict.get(actor, 0) + 1
-
+    # find release year (new layout first, then fallbacks)
+    year_found = None
+    # Try from visible releasedate link
     try:
-        ret = int(''.join(map(str, re.findall(r'\d*\.?\d+', str_match[a:a+20]))))
-        return ret
-    except:
-        return 0
+        releasedate_link = soup.select_one('span.releasedate a')
+        if releasedate_link and releasedate_link.text:
+            yr_txt = re.search(r'(\d{4})', releasedate_link.text)
+            if yr_txt:
+                year_found = int(yr_txt.group(1))
+    except Exception:
+        pass
+    # try from JSON-LD schema
+    if year_found is None:
+        try:
+            for tag in soup.find_all('script', attrs={'type': 'application/ld+json'}):
+                data = json.loads(tag.string or '{}')
+                if isinstance(data, dict) and data.get('@type') in ('Movie', 'VideoObject'):
+                    if isinstance(data.get('releasedEvent'), list) and data['releasedEvent']:
+                        dt = data['releasedEvent'][0].get('startDate')
+                        if dt:
+                            yr_txt = re.search(r'(\d{4})', str(dt))
+                            if yr_txt:
+                                year_found = int(yr_txt.group(1))
+                                break
+                    dt = data.get('dateCreated') or data.get('datePublished')
+                    if dt:
+                        yr_txt = re.search(r'(\d{4})', str(dt))
+                        if yr_txt:
+                            year_found = int(yr_txt.group(1))
+                            break
+        except Exception:
+            pass
+    # legacy inline script pattern, can un-comment for fallback
+    # if year_found is None:
+    #     release_year_match = re.search(r'data\.production\.releaseYear\s*=\s*(\d{4})', str_match)
+    #     if release_year_match:
+    #         try:
+    #             year_found = int(release_year_match.group(1))
+    #         except ValueError:
+    #             year_found = None
+    if year_found is not None:
+        decade = f"{year_found // 10 * 10}s"
+        with lock:
+            decadeDict[decade] += 1
+
+    # find runtime (from footer element)
+    ret = 0
+    try:
+        footer = soup.select_one('.text-link.text-footer')
+        if footer:
+            mt = re.search(r'(\d+)\s*min', footer.get_text(' '), re.I)
+            if mt:
+                ret = int(mt.group(1))
+    except Exception:
+        pass
+
+    # find languages (prefer new tab structure, fallback to string scan)
+    try:
+        lang_links = soup.select('#tab-details .text-sluglist a[href^="/films/language/"]')
+        for a_tag in lang_links:
+            lang = (a_tag.text or '').strip()
+            if not lang:
+                continue
+            if ',' in lang:
+                lang = lang.partition(',')[0]
+            if lang == "No spoken language":
+                lang = "None"
+            film_languages.add(lang)
+        if lang_links:
+            b = -1  # skip eventual fallback scan if we found via BS
+    except Exception:
+        pass
+    # legacy string scan, can un-comment for fallback
+    # if 'b' in locals() and b != -1:
+    #     b = 0
+    #     while b != -1:
+    #         b = str_match.find('/films/language/', b)
+    #         if b == -1:
+    #             break
+    #         index = max(0, b - 2000)
+    #         check_spoken = str_match[index:b]
+    #         if "Spoken Languages" in check_spoken:
+    #             b = -1
+    #             break
+    #         b += len('/films/language/')
+    #         b = str_match.find('>', b)
+    #         if b == -1:
+    #             break
+    #         b += 1
+    #         c = str_match.find('<', b)
+    #         if c == -1:
+    #             break
+    #         lang = str_match[b:c]
+    #         if ',' in lang:
+    #             lang = lang.partition(',')[0]
+    #         if lang == "No spoken language":
+    #             lang = "None"
+    #         film_languages.add(lang)
+
+    # find countries (with details tab)
+    found_country = False
+    try:
+        country_links = soup.select('#tab-details a[href^="/films/country/"]')
+        for a_tag in country_links:
+            country = (a_tag.text or '').strip()
+            if not country:
+                continue
+            if ',' in country:
+                country = country.partition(',')[0]
+            film_countries.add(country)
+            found_country = True
+    except Exception:
+        pass
+    # legacy string scan, can un-comment for fallback
+    # if not found_country:
+    #     b = 0
+    #     while b != -1:
+    #         b = str_match.find('/films/country/', b)
+    #         if b == -1:
+    #             break
+    #         b += len('/films/country/')
+    #         b = str_match.find('>', b)
+    #         if b == -1:
+    #             break
+    #         b += 1
+    #         c = str_match.find('<', b)
+    #         if c == -1:
+    #             break
+    #         country = str_match[b:c]
+    #         if ',' in country:
+    #             country = country.partition(',')[0]
+    #         film_countries.add(country)
+
+    # find genres (with genres tab)
+    found_genre = False
+    try:
+        genre_links = soup.select('#tab-genres a[href^="/films/genre/"]')
+        for a_tag in genre_links:
+            genre = ((a_tag.text or '').strip()).capitalize()
+            if not genre:
+                continue
+            if ',' in genre:
+                genre = genre.partition(',')[0]
+            film_genres.add(genre)
+            found_genre = True
+    except Exception:
+        pass
+    # legacy string scan, can un-comment for fallback
+    # if not found_genre:
+    #     b = 0
+    #     while b != -1:
+    #         b = str_match.find('/films/genre/', b)
+    #         if b == -1:
+    #             break
+    #         b += len('/films/genre/')
+    #         b = str_match.find('>', b)
+    #         if b == -1:
+    #             break
+    #         b += 1
+    #         c = str_match.find('<', b)
+    #         if c == -1:
+    #             break
+    #         genre = str_match[b:c].capitalize()
+    #         if ',' in genre:
+    #             genre = genre.partition(',')[0]
+    #         film_genres.add(genre)
+
+    # find directors (with productioninfo/crew)
+    found_director = False
+    try:
+        # production masthead credits
+        credits = soup.select_one('section.production-masthead .details .credits')
+        if credits:
+            for a_tag in credits.select('a[href^="/director/"]'):
+                director = (a_tag.text or '').strip()
+                if director:
+                    film_directors.add(director)
+                    found_director = True
+        # crew tab explicit director section
+        if not found_director:
+            crew_dir = soup.select('#tab-crew + div, #tab-crew')  # ensure soup parses crew tab if present
+            for a_tag in soup.select('#tab-crew a[href^="/director/"]'):
+                director = (a_tag.text or '').strip()
+                if director:
+                    film_directors.add(director)
+                    found_director = True
+    except Exception:
+        pass
+    # legacy string scan, can un-comment for fallback
+    # if not found_director:
+    #     d = str_match.find('more-directors', 0)
+    #     if d != -1:
+    #         b = d
+    #         while b != -1:
+    #             b = str_match.find("/director", b)
+    #             if b == -1:
+    #                 break
+    #             e = str_match.find("</span>", b)
+    #             if e != -1 and e < str_match.find("</p>", b):
+    #                 break
+    #             b += len('/director')
+    #             b = str_match.find('/">', b)
+    #             if b == -1:
+    #                 break
+    #             b += len('/">')
+    #             c = str_match.find('<', b)
+    #             if c == -1:
+    #                 break
+    #             director = str_match[b:c]
+    #             film_directors.add(director)
+    #     else:
+    #         d = str_match.find("Directed by </span><span")
+    #         b = d
+    #         while b != -1:
+    #             b = str_match.find("/director", b)
+    #             if b == -1:
+    #                 break
+    #             e = str_match.find("</section>", d, b)
+    #             if e != -1:
+    #                 break
+    #             b += len('/director')
+    #             b = str_match.find('prettify">', b)
+    #             if b == -1:
+    #                 break
+    #             b += len('prettify">')
+    #             c = str_match.find('<', b)
+    #             if c == -1:
+    #                 break
+    #             director = str_match[b:c]
+    #             film_directors.add(director)
+
+    # find actors (with cast tab structure)
+    found = 0
+    try:
+        cast_items = soup.select('#tab-cast .cast-list a.text-slug, .cast-list.text-sluglist a.text-slug, .cast-list a[href^="/actor/"]')
+        for a_tag in cast_items:
+            actor = (a_tag.text or '').strip()
+            if not actor:
+                continue
+            low = actor.lower()
+            if 'show all' in low or low.startswith('show '):
+                continue
+            film_actors.add(actor)
+            found = 1
+        # skip eventual fallback scan if we found via BS
+        if found:
+            b = -1
+            c = -1
+    except Exception:
+        pass
+    # legacy string scan, can un-comment for fallback
+    # if not found:
+    #     b = 0
+    #     while found == 0:
+    #         b = str_match.find('cast-list text-sluglist">', b)
+    #         if b == -1:
+    #             break
+    #         b += len('cast-list text-sluglist">')
+    #         b = str_match.find('">', b)
+    #         if b == -1:
+    #             break
+    #         b += len('">')
+    #         c = str_match.find('</', b)
+    #         if c == -1:
+    #             break
+    #         d = str_match.find("remove-ads-modal", b, c)
+    #         if d != -1:
+    #             b = c
+    #             continue
+    #         actor = str_match[b:c].strip()
+    #         if '<' in actor or '>' in actor:
+    #             b = c
+    #             continue
+    #         low = actor.lower()
+    #         if 'show all' in low or low.startswith('show '):
+    #             b = c
+    #             continue
+    #         film_actors.add(actor)
+    #         found = 1
+
+    #     while found == 1 and b != -1 and c != -1:
+    #         b = str_match.find('/actor/', b)
+    #         if b == -1:
+    #             break
+    #         b += len('/actor/')
+    #         b = str_match.find('">', b)
+    #         if b == -1:
+    #             break
+    #         b += len('">')
+    #         c = str_match.find('</', b)
+    #         if c == -1:
+    #             break
+    #         d = str_match.find("remove-ads-modal", b, c)
+    #         if d != -1:
+    #             b = c
+    #             continue
+    #         actor = str_match[b:c].strip()
+    #         if '<' in actor or '>' in actor:
+    #             b = c
+    #             continue
+    #         low = actor.lower()
+    #         if 'show all' in low or low.startswith('show '):
+    #             b = c
+    #             continue
+    #         film_actors.add(actor)
+
+    # add per-film unique buckets to global counters
+    if film_languages:
+        with lock:
+            for lang in film_languages:
+                langDict[lang] = langDict.get(lang, 0) + 1
+    if film_countries:
+        with lock:
+            for country in film_countries:
+                countryDict[country] = countryDict.get(country, 0) + 1
+    if film_genres:
+        with lock:
+            for genre in film_genres:
+                genreDict[genre] = genreDict.get(genre, 0) + 1
+    if film_directors:
+        with lock:
+            for director in film_directors:
+                directorDict[director] = directorDict.get(director, 0) + 1
+    if film_actors:
+        with lock:
+            for actor in film_actors:
+                actorDict[actor] = actorDict.get(actor, 0) + 1
+
+    return ret
 
 # get films' url
-def getFilms(url_table_page):
+def getFilms(url_table_page, requests_session):
     global url_list
-    a = 0
-    b = 0
-    url_ltbxd = "https://letterboxd.com/film/"
-    source = requests.get(url_table_page).text
+    global url_set
+    url_ltbxd = "https://letterboxd.com"
+    source = requests_session.get(url_table_page).text
     soup = BeautifulSoup(source, 'lxml')
-    str_match = str(soup)
-    while a <= len(str_match) and b < 72 and str_match.find('data-film-slug="', a) != -1:
-        a = str_match.find('data-film-slug="', a) + len('data-film-slug="')
-        helpstring = url_ltbxd
-        while str_match[a] != '"':
-            helpstring += str_match[a]
-            a += 1
-        url_list.append(helpstring)
-        b += 1
+    
+    # new layout: posters rendered as LazyPoster react components
+    posters = soup.select('div.react-component[data-component-class="LazyPoster"]')
+    count = 0
+    for comp in posters:
+        link = comp.get('data-item-link') or ''
+        slug = comp.get('data-item-slug') or ''
+        film_url = None
+        if link:
+            film_url = url_ltbxd + link
+        elif slug:
+            film_url = f"{url_ltbxd}/film/{slug}/"
+        if film_url:
+            if film_url not in url_set:
+                url_set.add(film_url)
+                url_list.append(film_url)
+                count += 1
+                if count >= 72:
+                    break
 
 def login(USER):
     global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries
@@ -300,6 +466,15 @@ def login(USER):
     str_match = str(soup)
     start_time = time.time()
     requests_session = requests.Session()
+    
+    # set headers to avoid being blocked and to get consistent markup
+    requests_session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+    })
     print("Session:", requests_session)
     print("Logging in " + USER)
 
@@ -312,15 +487,22 @@ def login(USER):
         str_match = str(soup)
 
     print("Fetching data...")
-    while str_match.find('poster-container') != -1:
-        cnt += 1
-        r = requests.get("https://letterboxd.com/" + USER + "/films/page/" + str(cnt) + "/")
+    # traverse pages by following the pagination "next/older" link
+    cnt = 1
+    while True:
+        st = "https://letterboxd.com/" + USER + "/films/page/" + str(cnt) + "/"
+        getFilms(st, requests_session)
+        r = requests_session.get(st)
         soup = BeautifulSoup(r.text, 'lxml')
-        str_match = str(soup)
-
-    for i in range(1, cnt):
-        st = "https://letterboxd.com/" + USER + "/films/page/" + str(i) + "/"
-        getFilms(st)
+        # look for next page link
+        next_link = (
+            soup.select_one('div.pagination a.next') or
+            soup.select_one('a.next[rel="next"]') or
+            soup.select_one('div.paginate-nextprev a.next')
+        )
+        if next_link is None:
+            break
+        cnt += 1
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
         fat_list = list(executor.map(scraper, url_list, repeat(requests_session)))
             
@@ -335,7 +517,7 @@ def login(USER):
     
     print("Note: one film can have multiple languages and/or countries, so the sum of all percentages may be more than 100%.\n")
     
-    # Process languages
+    # process languages
     sortedLang = dict(sorted(langDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in langDict.keys()] + [20]) + 1 if langDict else 21
     print(f"{'Language':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -354,7 +536,7 @@ def login(USER):
             gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
             model2.appendRow([QStandardItem(k), QStandardItem(str(v)), QStandardItem(percent)])
     
-    # Process countries
+    # process countries
     sortedCountry = dict(sorted(countryDict.items(), key=lambda x: x[1], reverse=True))
     spacing = max([len(i) for i in countryDict.keys()] + [20]) + 1 if countryDict else 21
     print(f"\n{'Country':<{spacing}}{'Films':>10}{'Percentage':>15}")
@@ -495,9 +677,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 
     def analyze(self):
         # reset globals for new search
-        global url_list, langDict, countryDict, genreDict, directorDict, actorDict, decadeDict
+        global url_list, url_set, langDict, countryDict, genreDict, directorDict, actorDict, decadeDict
         global gui_watched1, gui_watched2, gui_lang, gui_lang_list, gui_countries, gui_decades
         url_list = []
+        url_set = set()
         langDict = {}
         countryDict = {}
         genreDict = {}
