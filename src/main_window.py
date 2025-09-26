@@ -53,8 +53,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.label.setPixmap(self.logo)
         self.ui.label_logo.setPixmap(self.logoSmaller)
         
-        # Connect dialog save button
-        self.ui.pushButton.clicked.connect(self.save_results)
+        # Connect dialog buttons
+        self.ui.pushButton_save.clicked.connect(self.save_results)
+        self.ui.pushButton_close.clicked.connect(self.dialog.accept)
         
         self.loginInput = None
         self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
@@ -72,9 +73,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.pushButton.setText("Analyzing...")
         
         # Re-enable save button for new analysis
-        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton'):
-            self.ui.pushButton.setEnabled(True)
-            self.ui.pushButton.setText("Save results")
+        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton_save'):
+            self.ui.pushButton_save.setEnabled(True)
+            self.ui.pushButton_save.setText("Save results")
         
         self.loginInput = self.lineEdit.text()
         print("Name: " + self.loginInput)
@@ -175,9 +176,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             return
         
         # Re-enable save button for new file load
-        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton'):
-            self.ui.pushButton.setEnabled(True)
-            self.ui.pushButton.setText("Save results")
+        if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton_save'):
+            self.ui.pushButton_save.setEnabled(True)
+            self.ui.pushButton_save.setText("Save results")
         
         meta = FileManager.load_stats_from_csv(file_path)
         # Set username label from CSV contents if present; fallback to filename
@@ -222,5 +223,5 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         if success:
             # Update button text to show success
-            self.ui.pushButton.setText("Results saved")
-            self.ui.pushButton.setEnabled(False)  # Disable button after saving
+            self.ui.pushButton_save.setText("Results saved")
+            self.ui.pushButton_save.setEnabled(False)  # Disable button after saving
