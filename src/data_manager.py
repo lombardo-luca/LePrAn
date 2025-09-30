@@ -1,6 +1,6 @@
 """
-File management functionality.
-Handles saving and loading CSV files with statistics data.
+Data management functionality.
+Handles saving and loading CSV files, GUI display formatting, and data population.
 """
 import csv
 import time
@@ -198,11 +198,11 @@ class GUIStringGenerator:
                 print(f"{k:<20}{v:>10}{percent:>15}")
 
 
-class FileManager:
-    """Coordinates file operations using specialized handler classes."""
+class DataManager:
+    """Coordinates data operations using specialized handler classes."""
     
     def __init__(self, app_context):
-        """Initialize FileManager with dependency injection."""
+        """Initialize DataManager with dependency injection."""
         self.app_context = app_context
         self.stats_data = app_context.stats_data
         self.gui_models = app_context.gui_models
