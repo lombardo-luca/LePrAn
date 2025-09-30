@@ -22,17 +22,6 @@ class LoadedStats:
     scraped_at: str
 
 
-# Custom exceptions for better error handling
-class DataManagerError(Exception):
-    """Base exception for data manager operations."""
-    pass
-
-
-class CSVError(DataManagerError):
-    """Exception raised for CSV file operations."""
-    pass
-
-
 class StatisticsCSVHandler:
     """Handles pure CSV I/O operations for statistics data."""
     
@@ -74,11 +63,11 @@ class StatisticsCSVHandler:
         except IOError as e:
             error_msg = f"Failed to write CSV file {csv_path}: {e}"
             logger.error(error_msg)
-            raise CSVError(error_msg) from e
+            raise IOError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error saving CSV {csv_path}: {e}"
             logger.error(error_msg)
-            raise CSVError(error_msg) from e
+            raise IOError(error_msg) from e
     
     def load_from_csv(self, csv_path: str) -> Optional[LoadedStats]:
         """Load statistics from CSV file and return metadata."""
@@ -137,21 +126,21 @@ class StatisticsCSVHandler:
         except FileNotFoundError as e:
             error_msg = f"CSV file not found: {csv_path}"
             logger.error(error_msg)
-            raise CSVError(error_msg) from e
+            raise IOError(error_msg) from e
         except IOError as e:
             error_msg = f"Failed to read CSV file {csv_path}: {e}"
             logger.error(error_msg)
-            raise CSVError(error_msg) from e
+            raise IOError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error loading CSV {csv_path}: {e}"
             logger.error(error_msg)
-            raise CSVError(error_msg) from e
+            raise IOError(error_msg) from e
 
         # Validate loaded data
         if films_num < 0:
             error_msg = f"Invalid films count in CSV: {films_num} (cannot be negative)"
             logger.error(error_msg)
-            raise CSVError(error_msg)
+            raise IOError(error_msg)
 
         # Set meta data
         self.stats_data.set_meta_data(films_num, total_hours, total_days, loaded_scraped_at)
@@ -187,7 +176,7 @@ class DataPopulator:
         except Exception as e:
             error_msg = f"Failed to populate GUI models: {e}"
             logger.error(error_msg)
-            raise DataManagerError(error_msg) from e
+            raise RuntimeError(error_msg) from e
 
 
 class GUIStringGenerator:
@@ -211,7 +200,7 @@ class GUIStringGenerator:
         except Exception as e:
             error_msg = f"Failed to generate GUI strings: {e}"
             logger.error(error_msg)
-            raise DataManagerError(error_msg) from e
+            raise RuntimeError(error_msg) from e
     
     def _generate_summary_strings(self, films_num: int) -> None:
         """Generate summary strings (watched films and total time)."""
@@ -279,12 +268,12 @@ class DataManager:
         """Save all extracted statistics to a CSV file."""
         try:
             return self.csv_handler.save_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path)
-        except CSVError:
+        except IOError:
             raise  
         except Exception as e:
             error_msg = f"Unexpected error in save_stats_to_csv: {e}"
             logger.error(error_msg)
-            raise DataManagerError(error_msg) from e
+            raise RuntimeError(error_msg) from e
     
     def load_stats_from_csv(self, csv_path: str) -> Optional[LoadedStats]:
         """Load statistics from a CSV file into data structures."""
@@ -301,20 +290,20 @@ class DataManager:
                 logger.info(f"Successfully loaded and populated data from {csv_path}")
             
             return meta
-        except CSVError:
+        except IOError:
             raise
         except Exception as e:
             error_msg = f"Unexpected error in load_stats_from_csv: {e}"
             logger.error(error_msg)
-            raise DataManagerError(error_msg) from e
+            raise RuntimeError(error_msg) from e
     
     def generate_gui_strings(self, films_num: int) -> None:
         """Generate GUI display strings from current statistics."""
         try:
             self.gui_generator.generate_all_strings(films_num)
-        except DataManagerError:
+        except RuntimeError:
             raise 
         except Exception as e:
             error_msg = f"Unexpected error in generate_gui_strings: {e}"
             logger.error(error_msg)
-            raise DataManagerError(error_msg) from e
+            raise RuntimeError(error_msg) from e
