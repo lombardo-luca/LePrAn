@@ -78,7 +78,3 @@ class Config:
             logger.error(f"Error saving config: {e}")
         except Exception as e:
             logger.error(f"Unexpected error saving config: {e}")
-
-
-# Note: Global config instance removed in favor of dependency injection.
-# Config is now instantiated in AppContext. See src/context.py

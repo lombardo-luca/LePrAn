@@ -340,7 +340,6 @@ class LetterboxdScraper:
         
         # Process films with optimized threading
         print("Analyzing films...")
-        analysis_start = time.time()
         
         # Use adaptive thread count based on number of films
         max_workers = min(self.app_context.config.max_threads, len(self.app_context.stats_data.url_list))

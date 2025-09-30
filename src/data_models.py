@@ -131,8 +131,3 @@ class GUIModels:
     def get_model(self, name):
         """Get a specific model by name."""
         return self.models.get(name)
-
-
-# Note: Global instances have been removed in favor of dependency injection.
-# These classes are now instantiated in AppContext and passed as dependencies.
-# See src/context.py for the new pattern.

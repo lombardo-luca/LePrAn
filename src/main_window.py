@@ -37,7 +37,7 @@ class LoginThread(QThread):
             self.scraper = LetterboxdScraper(app_context)
 
     def run(self):
-        result = self.scraper.scrape_user_profile(self.login)
+        self.scraper.scrape_user_profile(self.login)
         self.doneSignal.emit()
 
 
