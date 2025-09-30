@@ -12,6 +12,7 @@ from gui.gui_main import Ui_MainWindow
 from gui.gui_results import Ui_Dialog
 from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 from .scraper import LetterboxdScraper
+from .scraper_legacy import LegacyLetterboxdScraper
 from .file_manager import FileManager
 
 
@@ -23,7 +24,12 @@ class LoginThread(QThread):
         super().__init__()
         self.login = login
         self.app_context = app_context
-        self.scraper = LetterboxdScraper(app_context)
+        
+        # Select scraper based on configuration
+        if app_context.config.scraper == "legacy":
+            self.scraper = LegacyLetterboxdScraper(app_context)
+        else:  # Default to optimized scraper
+            self.scraper = LetterboxdScraper(app_context)
 
     def run(self):
         result = self.scraper.scrape_user_profile(self.login)
@@ -36,6 +42,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, app_context, *args, obj=None, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.app_context = app_context
+        self.file_manager = FileManager(app_context)
         self.setupUi(self)
 
         # Create results window (dialog)
@@ -109,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.pushButton.setEnabled(True)
         
         # Generate GUI strings
-        FileManager.generate_gui_strings(self.app_context.stats_data.films_count, self.app_context)
+        self.file_manager.generate_gui_strings(self.app_context.stats_data.films_count)
         
         # Update dialog labels
         self.ui.label_username.setText("User: " + self.loginInput)
@@ -180,7 +187,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.pushButton_save.setEnabled(True)
             self.ui.pushButton_save.setText("Save results")
         
-        meta = FileManager.load_stats_from_csv(file_path, self.app_context)
+        meta = self.file_manager.load_stats_from_csv(file_path)
         # Set username label from CSV contents if present; fallback to filename
         loaded_user = (meta or {}).get('username') if isinstance(meta, dict) else ''
         if loaded_user:
@@ -212,14 +219,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # Save the current statistics to CSV
         scraped_at = self.app_context.stats_data.gui_scraped_at or time.strftime("%d/%m/%Y", time.localtime())
-        success = FileManager.save_stats_to_csv(
+        success = self.file_manager.save_stats_to_csv(
             username,
             scraped_at,
             self.app_context.stats_data.films_count,
             self.app_context.stats_data.total_hours,
             self.app_context.stats_data.total_days,
             csv_path=file_path,
-            app_context=self.app_context,
         )
         
         if success:

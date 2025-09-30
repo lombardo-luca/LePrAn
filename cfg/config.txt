@@ -1,1 +1,2 @@
 workerThreadsNumber:20
+scraper:optimized

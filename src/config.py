@@ -12,6 +12,7 @@ class Config:
     def __init__(self):
         self.max_threads = 20
         self.list_delim = 200
+        self.scraper = "optimized"  # Use "optimized" or "legacy"
         self.config_path = self.get_resource_path('cfg/config.txt')
         self.load_config()
     
@@ -28,12 +29,18 @@ class Config:
         if os.path.exists(self.config_path):
             try:
                 with open(self.config_path) as f:
-                    first_line = f.readline().strip('\n')
-                print("Config file found.")
-                splitted_line = first_line.split(':')
-                if splitted_line[0] == 'workerThreadsNumber':
-                    self.max_threads = int(splitted_line[1])
-                    print("First line read.")
+                    for line in f:
+                        line = line.strip()
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            if key == 'workerThreadsNumber':
+                                self.max_threads = int(value)
+                            elif key == 'scraper':
+                                if value.lower() in ['optimized', 'legacy']:
+                                    self.scraper = value.lower()
+                            elif key == 'useOptimizedScraper':  # Legacy support
+                                self.scraper = "optimized" if value.lower() == 'true' else "legacy"
+                print("Config file loaded.")
             except Exception as e:
                 print(f"Error reading config: {e}")
         else:
@@ -44,8 +51,9 @@ class Config:
         try:
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, 'w') as f:
-                f.write("workerThreadsNumber:20")
-            print("Config file created.")
+                f.write("workerThreadsNumber:20\n")
+                f.write("scraper:optimized\n")
+            print("Config file created with optimized scraper as default.")
         except Exception as e:
             print(f"Error creating config: {e}")
     
@@ -54,7 +62,8 @@ class Config:
         try:
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, 'w') as f:
-                f.write(f"workerThreadsNumber:{self.max_threads}")
+                f.write(f"workerThreadsNumber:{self.max_threads}\n")
+                f.write(f"scraper:{self.scraper}\n")
             print("Config saved.")
         except Exception as e:
             print(f"Error saving config: {e}")
