@@ -12,8 +12,9 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from gui.gui_main import Ui_MainWindow
 from gui.gui_results import Ui_Dialog
 from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
-from .scraper import LetterboxdScraper
+from .scraper_optimized import LetterboxdScraper
 from .scraper_legacy import LegacyLetterboxdScraper
+from .scraper_async import AsyncLetterboxdScraper
 from .data_manager import DataManager
 
 
@@ -31,8 +32,10 @@ class LoginThread(QThread):
         self.app_context = app_context
         
         # Select scraper based on configuration
-        if app_context.config.scraper == "legacy":
+        if app_context.config.scraper_profile == "legacy":
             self.scraper = LegacyLetterboxdScraper(app_context)
+        elif app_context.config.scraper_profile == "async":
+            self.scraper = AsyncLetterboxdScraper(app_context)
         else:  # Default to optimized scraper
             self.scraper = LetterboxdScraper(app_context)
 

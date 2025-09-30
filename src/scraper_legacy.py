@@ -280,11 +280,38 @@ class LegacyLetterboxdScraper:
                 break
             cnt += 1
         
-        # Scrape all film pages
+        # Scrape all film pages with progress tracking
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.app_context.config.max_threads) as executor:
-            runtime_list = list(executor.map(self._scrape_film_page, self.app_context.stats_data.url_list))
+            futures = [executor.submit(self._scrape_film_page, url) 
+                      for url in self.app_context.stats_data.url_list]
+            
+            runtime_list = []
+            completed = 0
+            total = len(self.app_context.stats_data.url_list)
+            
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    runtime = future.result()
+                    runtime_list.append(runtime)
+                    completed += 1
+                    
+                    # Show progress bar
+                    percentage = (completed / total) * 100
+                    bar_length = 40
+                    filled = int(bar_length * completed / total)
+                    bar = '█' * filled + '░' * (bar_length - filled)
+                    remaining = total - completed
+                    print(f'\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining', end='', flush=True)
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to process film: {e}")
+                    runtime_list.append(0)
+        
+        print()  # New line after progress bar
         
         films_num = len(self.app_context.stats_data.url_list)
+        total_time = time.time() - start_time
+        
         print(f"\nFilms analyzed: {films_num}")
         logger.info(f"Analysis complete - {films_num} films processed")
         
@@ -301,7 +328,9 @@ class LegacyLetterboxdScraper:
         
         self.app_context.stats_data.set_meta_data(films_num, hrs, dys, scraped_when)
         
-        print("\nScraping time: %.2f seconds." % (time.time() - start_time))
+        print(f"\nScraping time: {total_time:.2f} seconds.")
+        print(f"Speed: {films_num/total_time:.1f} films/second")
+        print(f"Time per film: {total_time/films_num:.3f}s")
         
         return {
             'films_num': films_num,

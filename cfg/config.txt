@@ -1,2 +1,2 @@
 workerThreadsNumber:20
-scraper:optimized
+scraperProfile:async

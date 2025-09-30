@@ -4,6 +4,7 @@ Main application entry point.
 """
 import sys
 import logging
+
 from PyQt6 import QtWidgets, QtGui
 from src.context import AppContext
 from src.main_window import MainWindow
@@ -12,7 +13,8 @@ from src.main_window import MainWindow
 # Configure logging for the application
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ def main():
         window = MainWindow(app_context)
         window.show()
         
-        logger.info("LePrAn application started successfully")
+        logger.info("LePrAn application started successfully.")
         app.exec()
         
     except Exception as e:

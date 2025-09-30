@@ -331,9 +331,6 @@ class LetterboxdScraper:
                 print("Reached maximum page limit (1000)")
                 break
         
-        collection_time = time.time() - start_time
-        print(f"Found {len(self.app_context.stats_data.url_list)} films in {collection_time:.1f}s")
-        
         if not self.app_context.stats_data.url_list:
             logger.warning("No films found for user")
             return None
@@ -358,9 +355,14 @@ class LetterboxdScraper:
                     runtime_list.append(runtime)
                     completed += 1
                     
-                    # Progress feedback every 100 films
-                    if completed % 100 == 0:
-                        print(f"Analyzed {completed}/{len(self.app_context.stats_data.url_list)} films...")
+                    # Show progress bar
+                    total = len(self.app_context.stats_data.url_list)
+                    percentage = (completed / total) * 100
+                    bar_length = 40
+                    filled = int(bar_length * completed / total)
+                    bar = '█' * filled + '░' * (bar_length - filled)
+                    remaining = total - completed
+                    print(f'\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining', end='', flush=True)
                         
                 except Exception as e:
                     logger.warning(f"Failed to process film: {e}")
@@ -378,8 +380,12 @@ class LetterboxdScraper:
         hrs = sum(runtime_list) / 60
         dys = hrs / 24
         
-        print(f"\nFilms analyzed: {films_num}")
+        # Move to new line after progress bar
+        print()
+        print(f"Films analyzed: {films_num}")
         print(f"Total time: {total_time:.1f}s")
+        print(f"Speed: {films_num/total_time:.1f} films/second")
+        print(f"Time per film: {total_time/films_num:.3f}s")
         
         # Set meta data
         try:
