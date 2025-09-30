@@ -4,6 +4,11 @@ Handles reading and writing configuration settings.
 """
 import os
 import sys
+import logging
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -40,9 +45,11 @@ class Config:
                                     self.scraper = value.lower()
                             elif key == 'useOptimizedScraper':  # Legacy support
                                 self.scraper = "optimized" if value.lower() == 'true' else "legacy"
-                print("Config file loaded.")
+                logger.info("Config file loaded.")
+            except (IOError, ValueError) as e:
+                logger.warning(f"Error reading config: {e}")
             except Exception as e:
-                print(f"Error reading config: {e}")
+                logger.error(f"Unexpected error loading config: {e}")
         else:
             self.create_default_config()
     
@@ -53,9 +60,11 @@ class Config:
             with open(self.config_path, 'w') as f:
                 f.write("workerThreadsNumber:20\n")
                 f.write("scraper:optimized\n")
-            print("Config file created with optimized scraper as default.")
+            logger.info("Config file created with optimized scraper as default.")
+        except IOError as e:
+            logger.error(f"Error creating config: {e}")
         except Exception as e:
-            print(f"Error creating config: {e}")
+            logger.error(f"Unexpected error creating config: {e}")
     
     def save_config(self):
         """Save current configuration to file."""
@@ -64,9 +73,11 @@ class Config:
             with open(self.config_path, 'w') as f:
                 f.write(f"workerThreadsNumber:{self.max_threads}\n")
                 f.write(f"scraper:{self.scraper}\n")
-            print("Config saved.")
+            logger.info("Config saved.")
+        except IOError as e:
+            logger.error(f"Error saving config: {e}")
         except Exception as e:
-            print(f"Error saving config: {e}")
+            logger.error(f"Unexpected error saving config: {e}")
 
 
 # Note: Global config instance removed in favor of dependency injection.

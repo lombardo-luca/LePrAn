@@ -4,6 +4,7 @@ Handles the main application window and user interactions.
 """
 import os
 import time
+import logging
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QHeaderView, QFileDialog
 from PyQt6.QtGui import QPixmap, QAction
@@ -14,6 +15,10 @@ from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 from .scraper import LetterboxdScraper
 from .scraper_legacy import LegacyLetterboxdScraper
 from .data_manager import DataManager
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class LoginThread(QThread):
@@ -85,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.pushButton_save.setText("Save results")
         
         self.loginInput = self.lineEdit.text()
-        print("Name: " + self.loginInput)
+        logger.info(f"Starting analysis for user: {self.loginInput}")
 
         # Run login function inside of a thread
         self.thread = LoginThread(self.loginInput, self.app_context)
@@ -98,12 +103,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.settings = Ui_Dialog_Settings()
         self.settings.setupUi(self.dialogSettings)
         self.settings.spinBox.setValue(int(self.app_context.config.max_threads))
-        print("Max threads1: " + str(self.app_context.config.max_threads))
+        logger.debug(f"Opening settings dialog with max_threads: {self.app_context.config.max_threads}")
         
         def save():
             self.app_context.config.max_threads = self.settings.spinBox.value()
             self.app_context.config.save_config()
-            print("Max threads2: " + str(self.app_context.config.max_threads))
+            logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}")
         
         self.settings.save_button = QtWidgets.QDialogButtonBox.StandardButton.Save
         self.dialogSettings.accepted.connect(save)
@@ -195,7 +200,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             try:
                 self.loginInput = os.path.splitext(os.path.basename(file_path))[0]
-            except Exception:
+            except (OSError, ValueError) as e:
+                logger.warning(f"Could not extract username from filename: {e}")
                 self.loginInput = "(loaded)"
         
         # Show results dialog using existing setup

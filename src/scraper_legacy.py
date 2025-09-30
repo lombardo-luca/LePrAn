@@ -7,7 +7,12 @@ import re
 import time
 import json
 import concurrent.futures
+import logging
 from bs4 import BeautifulSoup
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class LegacyLetterboxdScraper:
@@ -237,8 +242,8 @@ class LegacyLetterboxdScraper:
         self.app_context.stats_data.reset()
         self._create_session()
         
-        print("Session:", self.session)
-        print("Logging in " + username)
+        logger.debug(f"Session: {self.session}")
+        logger.info(f"Analyzing user: {username}")
         
         # Verify that the user exists
         cnt = 1
@@ -247,14 +252,14 @@ class LegacyLetterboxdScraper:
         str_match = str(soup)
         
         while "Sorry, we can't find the page" in str_match:
-            print("There is no user named ", username, ".")
+            logger.error(f"User '{username}' not found")
             username = input('Insert your Letterboxd username: ')
             cnt = 1
             r = requests.get("https://letterboxd.com/" + username + "/films/page/" + str(cnt) + "/")
             soup = BeautifulSoup(r.text, 'lxml')
             str_match = str(soup)
         
-        print("Fetching data...")
+        logger.info("Collecting film URLs...")
         start_time = time.time()
         
         # Traverse pages by following pagination
@@ -280,7 +285,8 @@ class LegacyLetterboxdScraper:
             runtime_list = list(executor.map(self._scrape_film_page, self.app_context.stats_data.url_list))
         
         films_num = len(self.app_context.stats_data.url_list)
-        print("\nFilms watched: " + str(films_num))
+        print(f"\nFilms analyzed: {films_num}")
+        logger.info(f"Analysis complete - {films_num} films processed")
         
         hrs = sum(runtime_list) / 60
         dys = hrs / 24
