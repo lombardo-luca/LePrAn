@@ -10,3 +10,4 @@ setup.bat
 *.xlsx
 gfx/*.ico
 optimization_test.py
+performance_test.py
