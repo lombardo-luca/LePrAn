@@ -103,7 +103,7 @@ class AsyncLetterboxdScraper:
             
             return None
 
-    async def _scrape_film_page_async(self, url, total_films=0):
+    async def _scrape_film_page_async(self, url, total_films=0, start_time=0):
         """Ultra-fast async film page scraping with minimal parsing."""
         content = await self._fetch_page(url)
         if not content:
@@ -120,14 +120,31 @@ class AsyncLetterboxdScraper:
             self._aggregate_film_data(film_data)
             
             # Update progress after each film
-            if total_films > 0:
+            if total_films > 0 and start_time > 0:
                 self.processed_count += 1
+                elapsed_time = time.time() - start_time
                 progress = (self.processed_count / total_films) * 100
                 bar_length = 40
                 filled = int(bar_length * self.processed_count / total_films)
                 bar = '█' * filled + '░' * (bar_length - filled)
                 remaining = total_films - self.processed_count
-                print(f"\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining", end='', flush=True)
+                
+                # Calculate ETA based on current speed
+                if self.processed_count > 0 and elapsed_time > 0:
+                    speed = self.processed_count / elapsed_time
+                    eta_seconds = remaining / speed if speed > 0 else 0
+                    
+                    # Format ETA nicely
+                    if eta_seconds < 60:
+                        eta_str = f"{eta_seconds:.0f}s"
+                    else:
+                        eta_minutes = eta_seconds / 60
+                        eta_str = f"{eta_minutes:.1f}m"
+                    
+                    # Clear line first, then print progress
+                    print(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining | ETA: {eta_str}", end='', flush=True)
+                else:
+                    print(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining", end='', flush=True)
             
             return film_data.get('runtime', 0)
             
@@ -356,9 +373,9 @@ class AsyncLetterboxdScraper:
             # Reset progress counter
             self.processed_count = 0
             
-            # Create async tasks for all films with total count for progress
+            # Create async tasks for all films with total count and start time for ETA
             total_films = len(all_film_urls)
-            tasks = [self._scrape_film_page_async(url, total_films) for url in all_film_urls]
+            tasks = [self._scrape_film_page_async(url, total_films, analysis_start) for url in all_film_urls]
             
             # Process in aggressive batches for maximum speed
             batch_size = 100  # Large batches

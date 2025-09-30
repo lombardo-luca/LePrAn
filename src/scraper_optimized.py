@@ -337,6 +337,7 @@ class LetterboxdScraper:
         
         # Process films with optimized threading
         print("Analyzing films...")
+        analysis_start = time.time()
         
         # Use adaptive thread count based on number of films
         max_workers = min(self.app_context.config.max_threads, len(self.app_context.stats_data.url_list))
@@ -355,14 +356,31 @@ class LetterboxdScraper:
                     runtime_list.append(runtime)
                     completed += 1
                     
-                    # Show progress bar
+                    # Show progress bar with ETA
                     total = len(self.app_context.stats_data.url_list)
+                    elapsed_time = time.time() - analysis_start
                     percentage = (completed / total) * 100
                     bar_length = 40
                     filled = int(bar_length * completed / total)
                     bar = '█' * filled + '░' * (bar_length - filled)
                     remaining = total - completed
-                    print(f'\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining', end='', flush=True)
+                    
+                    # Calculate ETA
+                    if completed > 0 and elapsed_time > 0:
+                        speed = completed / elapsed_time
+                        eta_seconds = remaining / speed if speed > 0 else 0
+                        
+                        # Format ETA
+                        if eta_seconds < 60:
+                            eta_str = f"{eta_seconds:.0f}s"
+                        else:
+                            eta_minutes = eta_seconds / 60
+                            eta_str = f"{eta_minutes:.1f}m"
+                        
+                        # Clear line first, then print progress
+                        print(f'\r{" " * 120}\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining | ETA: {eta_str}', end='', flush=True)
+                    else:
+                        print(f'\r{" " * 120}\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining', end='', flush=True)
                         
                 except Exception as e:
                     logger.warning(f"Failed to process film: {e}")
