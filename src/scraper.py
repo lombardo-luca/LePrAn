@@ -9,14 +9,13 @@ import json
 import concurrent.futures
 from itertools import repeat
 from bs4 import BeautifulSoup
-from .data_models import stats_data
-from .config import config
 
 
 class LetterboxdScraper:
     """Handles scraping Letterboxd profiles for film statistics."""
     
-    def __init__(self):
+    def __init__(self, app_context):
+        self.app_context = app_context
         self.session = None
         self.debug_times = {
             'time_1': -1,
@@ -44,7 +43,7 @@ class LetterboxdScraper:
         source = self.session.get(url_film_page)
         end_time = time.time() - debug_start
         
-        with stats_data.lock:
+        with self.app_context.stats_data.lock:
             self.debug_times['tot_time_1'] += end_time
             if end_time >= self.debug_times['time_1']:
                 self.debug_times['time_1'] = end_time
@@ -75,7 +74,7 @@ class LetterboxdScraper:
         self._extract_actors(soup, film_actors)
         
         # Add to global statistics
-        stats_data.add_film_data(
+        self.app_context.stats_data.add_film_data(
             film_languages, film_countries, film_genres,
             film_directors, film_actors, decade
         )
@@ -229,14 +228,14 @@ class LetterboxdScraper:
             elif slug:
                 film_url = f"{url_ltbxd}/film/{slug}/"
             if film_url:
-                stats_data.add_url(film_url)
+                self.app_context.stats_data.add_url(film_url)
                 count += 1
                 if count >= 72:
                     break
     
     def scrape_user_profile(self, username):
         """Scrape a complete user profile and return statistics."""
-        stats_data.reset()
+        self.app_context.stats_data.reset()
         self._create_session()
         
         print("Session:", self.session)
@@ -278,10 +277,10 @@ class LetterboxdScraper:
             cnt += 1
         
         # Scrape all film pages
-        with concurrent.futures.ThreadPoolExecutor(max_workers=config.max_threads) as executor:
-            runtime_list = list(executor.map(self._scrape_film_page, stats_data.url_list))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.app_context.config.max_threads) as executor:
+            runtime_list = list(executor.map(self._scrape_film_page, self.app_context.stats_data.url_list))
         
-        films_num = len(stats_data.url_list)
+        films_num = len(self.app_context.stats_data.url_list)
         print("\nFilms watched: " + str(films_num))
         
         hrs = sum(runtime_list) / 60
@@ -295,7 +294,7 @@ class LetterboxdScraper:
         except Exception:
             scraped_when = ""
         
-        stats_data.set_meta_data(films_num, hrs, dys, scraped_when)
+        self.app_context.stats_data.set_meta_data(films_num, hrs, dys, scraped_when)
         
         print("\nScraping time: %.2f seconds." % (time.time() - start_time))
         

@@ -60,5 +60,5 @@ class Config:
             print(f"Error saving config: {e}")
 
 
-# Global config instance
-config = Config()
+# Note: Global config instance removed in favor of dependency injection.
+# Config is now instantiated in AppContext. See src/context.py

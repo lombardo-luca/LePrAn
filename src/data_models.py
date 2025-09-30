@@ -133,6 +133,6 @@ class GUIModels:
         return self.models.get(name)
 
 
-# Global instances
-stats_data = StatisticsData()
-gui_models = GUIModels()
+# Note: Global instances have been removed in favor of dependency injection.
+# These classes are now instantiated in AppContext and passed as dependencies.
+# See src/context.py for the new pattern.

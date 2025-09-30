@@ -4,15 +4,13 @@ Handles saving and loading CSV files with statistics data.
 """
 import csv
 import time
-from .data_models import stats_data, gui_models
-from .config import config
 
 
 class FileManager:
     """Handles CSV file operations for statistics data."""
     
     @staticmethod
-    def save_stats_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path):
+    def save_stats_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path, app_context):
         """Save all extracted statistics to a CSV file."""
         try:
             with open(csv_path, 'w', newline='', encoding='utf-8') as f:
@@ -25,17 +23,17 @@ class FileManager:
                 writer.writerow(['META', 'DAYS', f"{total_days:.6f}"])
 
                 # Save all dictionaries
-                for k, v in stats_data.lang_dict.items():
+                for k, v in app_context.stats_data.lang_dict.items():
                     writer.writerow(['LANGUAGE', k, v])
-                for k, v in stats_data.country_dict.items():
+                for k, v in app_context.stats_data.country_dict.items():
                     writer.writerow(['COUNTRY', k, v])
-                for k, v in stats_data.genre_dict.items():
+                for k, v in app_context.stats_data.genre_dict.items():
                     writer.writerow(['GENRE', k, v])
-                for k, v in stats_data.director_dict.items():
+                for k, v in app_context.stats_data.director_dict.items():
                     writer.writerow(['DIRECTOR', k, v])
-                for k, v in stats_data.actor_dict.items():
+                for k, v in app_context.stats_data.actor_dict.items():
                     writer.writerow(['ACTOR', k, v])
-                for k, v in stats_data.decade_dict.items():
+                for k, v in app_context.stats_data.decade_dict.items():
                     writer.writerow(['DECADE', k, v])
             print(f"Saved statistics to {csv_path}")
             return True
@@ -44,11 +42,11 @@ class FileManager:
             return False
 
     @staticmethod
-    def load_stats_from_csv(csv_path):
-        """Load statistics from a CSV file into global data structures."""
+    def load_stats_from_csv(csv_path, app_context):
+        """Load statistics from a CSV file into data structures."""
         # Reset all data
-        stats_data.reset()
-        gui_models.clear_all()
+        app_context.stats_data.reset()
+        app_context.gui_models.clear_all()
 
         films_num = 0
         total_hours = 0.0
@@ -86,18 +84,18 @@ class FileManager:
                             except Exception:
                                 total_days = 0.0
                     elif section == 'LANGUAGE':
-                        stats_data.lang_dict[name] = int(count)
+                        app_context.stats_data.lang_dict[name] = int(count)
                     elif section == 'COUNTRY':
-                        stats_data.country_dict[name] = int(count)
+                        app_context.stats_data.country_dict[name] = int(count)
                     elif section == 'GENRE':
-                        stats_data.genre_dict[name] = int(count)
+                        app_context.stats_data.genre_dict[name] = int(count)
                     elif section == 'DIRECTOR':
-                        stats_data.director_dict[name] = int(count)
+                        app_context.stats_data.director_dict[name] = int(count)
                     elif section == 'ACTOR':
-                        stats_data.actor_dict[name] = int(count)
+                        app_context.stats_data.actor_dict[name] = int(count)
                     elif section == 'DECADE':
                         try:
-                            stats_data.decade_dict[name] += int(count)
+                            app_context.stats_data.decade_dict[name] += int(count)
                         except Exception:
                             pass
         except FileNotFoundError:
@@ -108,10 +106,10 @@ class FileManager:
             return None
 
         # Set meta data
-        stats_data.set_meta_data(films_num, total_hours, total_days, loaded_scraped_at)
+        app_context.stats_data.set_meta_data(films_num, total_hours, total_days, loaded_scraped_at)
         
         # Populate GUI models
-        FileManager._populate_gui_models(films_num)
+        FileManager._populate_gui_models(films_num, app_context)
 
         print(f"Loaded statistics from {csv_path}")
         return {
@@ -123,50 +121,50 @@ class FileManager:
         }
 
     @staticmethod
-    def _populate_gui_models(films_num):
+    def _populate_gui_models(films_num, app_context):
         """Populate GUI models with loaded data."""
         # Populate each model
-        gui_models.populate_model('countries', stats_data.country_dict, films_num, config.list_delim)
-        gui_models.populate_model('languages', stats_data.lang_dict, films_num, config.list_delim)
-        gui_models.populate_model('genres', stats_data.genre_dict, films_num, config.list_delim)
-        gui_models.populate_model('directors', stats_data.director_dict, films_num, config.list_delim)
-        gui_models.populate_model('actors', stats_data.actor_dict, films_num, config.list_delim)
+        app_context.gui_models.populate_model('countries', app_context.stats_data.country_dict, films_num, app_context.config.list_delim)
+        app_context.gui_models.populate_model('languages', app_context.stats_data.lang_dict, films_num, app_context.config.list_delim)
+        app_context.gui_models.populate_model('genres', app_context.stats_data.genre_dict, films_num, app_context.config.list_delim)
+        app_context.gui_models.populate_model('directors', app_context.stats_data.director_dict, films_num, app_context.config.list_delim)
+        app_context.gui_models.populate_model('actors', app_context.stats_data.actor_dict, films_num, app_context.config.list_delim)
 
     @staticmethod
-    def generate_gui_strings(films_num):
+    def generate_gui_strings(films_num, app_context):
         """Generate GUI display strings from current statistics."""
-        with stats_data.lock:
-            stats_data.gui_watched1 = "Films watched: " + str(films_num)
-            stats_data.gui_watched2 = "Total running time: " + "%.2f" % stats_data.total_hours + " hours (%.2f" % stats_data.total_days + " days)"
+        with app_context.stats_data.lock:
+            app_context.stats_data.gui_watched1 = "Films watched: " + str(films_num)
+            app_context.stats_data.gui_watched2 = "Total running time: " + "%.2f" % app_context.stats_data.total_hours + " hours (%.2f" % app_context.stats_data.total_days + " days)"
 
             # Languages
-            sorted_lang = dict(sorted(stats_data.lang_dict.items(), key=lambda x: x[1], reverse=True))
-            stats_data.gui_lang = "Language\tFilms\tPercentage\n\n"
-            stats_data.gui_lang_list = [stats_data.gui_lang]
+            sorted_lang = dict(sorted(app_context.stats_data.lang_dict.items(), key=lambda x: x[1], reverse=True))
+            app_context.stats_data.gui_lang = "Language\tFilms\tPercentage\n\n"
+            app_context.stats_data.gui_lang_list = [app_context.stats_data.gui_lang]
             
             cnt_lang = 0
             for k, v in sorted_lang.items():
                 cnt_lang += 1
-                if config.list_delim != -1 and cnt_lang > config.list_delim:
+                if app_context.config.list_delim != -1 and cnt_lang > app_context.config.list_delim:
                     break
                 percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
-                stats_data.gui_lang += k + "\t" + str(v) + "\t" + percent + "\n"
-                stats_data.gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
+                app_context.stats_data.gui_lang += k + "\t" + str(v) + "\t" + percent + "\n"
+                app_context.stats_data.gui_lang_list.append(k + "\t" + str(v) + "\t" + percent + "\n")
 
             # Countries
-            sorted_country = dict(sorted(stats_data.country_dict.items(), key=lambda x: x[1], reverse=True))
-            stats_data.gui_countries = "Country\tFilms\tPercentage\n\n"
+            sorted_country = dict(sorted(app_context.stats_data.country_dict.items(), key=lambda x: x[1], reverse=True))
+            app_context.stats_data.gui_countries = "Country\tFilms\tPercentage\n\n"
             
             cnt_country = 0
             for k, v in sorted_country.items():
                 cnt_country += 1
-                if config.list_delim != -1 and cnt_country > config.list_delim:
+                if app_context.config.list_delim != -1 and cnt_country > app_context.config.list_delim:
                     break
                 percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
-                stats_data.gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
+                app_context.stats_data.gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
 
             # Decades (for console output)
-            sorted_decades = dict(sorted(stats_data.decade_dict.items(), key=lambda x: x[1], reverse=True))
+            sorted_decades = dict(sorted(app_context.stats_data.decade_dict.items(), key=lambda x: x[1], reverse=True))
             if sorted_decades:
                 print("\nDecade            Films        Percentage")
                 for k, v in sorted_decades.items():
