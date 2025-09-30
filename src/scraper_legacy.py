@@ -7,7 +7,6 @@ import re
 import time
 import json
 import concurrent.futures
-from itertools import repeat
 from bs4 import BeautifulSoup
 
 

@@ -22,14 +22,6 @@ class LetterboxdScraper:
     def __init__(self, app_context):
         self.app_context = app_context
         self.session = None
-        self.debug_times = {
-            'time_1': -1,
-            'tot_time_1': 0,
-            'time_2': -1,
-            'tot_time_2': 0,
-            'time_3': -1,
-            'tot_time_3': 0
-        }
         # Batch processing for reduced lock contention
         self.batch_data = []
         self.batch_lock = threading.Lock()
@@ -61,8 +53,6 @@ class LetterboxdScraper:
     
     def _scrape_film_page_optimized(self, url_film_page):
         """Optimized film page scraping with reduced parsing overhead."""
-        debug_start = time.time()
-        
         try:
             # Use shorter timeout for faster failure detection
             response = self.session.get(url_film_page, timeout=10)
@@ -70,8 +60,6 @@ class LetterboxdScraper:
         except requests.RequestException as e:
             print(f"Request failed for {url_film_page}: {e}")
             return 0
-        
-        end_time = time.time() - debug_start
         
         # Use faster parser when possible
         soup = BeautifulSoup(response.content, 'lxml')
@@ -133,7 +121,7 @@ class LetterboxdScraper:
                     if genre:
                         film_data['genres'].add(genre.capitalize())
             
-            # Directors from production masthead (faster than crew tab)
+            # Directors
             credits = soup.select_one('section.production-masthead .details .credits')
             if credits:
                 for a_tag in credits.select('a[href^="/director/"]'):
@@ -268,7 +256,7 @@ class LetterboxdScraper:
         soup = BeautifulSoup(response.text, 'lxml')
         url_ltbxd = "https://letterboxd.com"
         
-        # Get posters more efficiently
+        # Get posters
         posters = soup.select('div.react-component[data-component-class="LazyPoster"]')
         count = 0
         
@@ -288,7 +276,7 @@ class LetterboxdScraper:
                 if count >= 72:  # Letterboxd's page limit
                     break
         
-        # Check if there's a next page link (same logic as original scraper)
+        # Check if there's a next page link
         next_link = (
             soup.select_one('div.pagination a.next') or
             soup.select_one('a.next[rel="next"]') or
@@ -321,13 +309,10 @@ class LetterboxdScraper:
         
         # Collect all film URLs first
         page_num = 1
-        total_films = 0
         
         while True:
             url = f"https://letterboxd.com/{username}/films/page/{page_num}/"
             films_found, has_next_page = self._get_films_from_page_optimized(url)
-            
-            total_films += films_found
             
             # Use the same pagination logic as original scraper
             if not has_next_page:
@@ -380,7 +365,6 @@ class LetterboxdScraper:
             if self.batch_data:
                 self._process_batch()
         
-        analysis_time = time.time() - analysis_start
         total_time = time.time() - start_time
         
         # Calculate statistics

@@ -9,3 +9,4 @@ setup.bat
 *.csv
 *.xlsx
 gfx/*.ico
+optimization_test.py
