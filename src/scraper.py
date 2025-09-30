@@ -6,9 +6,14 @@ import re
 import time
 import requests
 import concurrent.futures
+import logging
 from bs4 import BeautifulSoup
 from collections import defaultdict
 import threading
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class LetterboxdScraper:
@@ -58,7 +63,7 @@ class LetterboxdScraper:
             response = self.session.get(url_film_page, timeout=10)
             response.raise_for_status()
         except requests.RequestException as e:
-            print(f"Request failed for {url_film_page}: {e}")
+            logger.warning(f"Request failed for {url_film_page}: {e}")
             return 0
         
         # Use faster parser when possible
@@ -137,7 +142,8 @@ class LetterboxdScraper:
                     film_data['actors'].add(actor)
         
         except Exception as e:
-            print(f"Error extracting film data: {e}")
+            logger.error(f"Error extracting film data: {e}")
+            # Continue processing even if this film fails
     
     def _clean_text(self, text):
         """Clean and process text."""
@@ -250,7 +256,7 @@ class LetterboxdScraper:
             response = self.session.get(url_table_page, timeout=15)
             response.raise_for_status()
         except requests.RequestException as e:
-            print(f"Failed to get films page {url_table_page}: {e}")
+            logger.error(f"Failed to get films page {url_table_page}: {e}")
             return 0, False
         
         soup = BeautifulSoup(response.text, 'lxml')
@@ -298,10 +304,10 @@ class LetterboxdScraper:
         try:
             r = self.session.get(test_url, timeout=10)
             if "Sorry, we can't find the page" in r.text:
-                print(f"User '{username}' not found")
+                logger.error(f"User '{username}' not found")
                 return None
         except requests.RequestException as e:
-            print(f"Error verifying user: {e}")
+            logger.error(f"Error verifying user: {e}")
             return None
         
         print("Collecting film URLs...")
@@ -329,7 +335,7 @@ class LetterboxdScraper:
         print(f"Found {len(self.app_context.stats_data.url_list)} films in {collection_time:.1f}s")
         
         if not self.app_context.stats_data.url_list:
-            print("No films found for user")
+            logger.warning("No films found for user")
             return None
         
         # Process films with optimized threading
@@ -358,6 +364,7 @@ class LetterboxdScraper:
                         print(f"Analyzed {completed}/{len(self.app_context.stats_data.url_list)} films...")
                         
                 except Exception as e:
+                    logger.warning(f"Failed to process film: {e}")
                     runtime_list.append(0)
         
         # Process any remaining batch data
