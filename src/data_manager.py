@@ -3,7 +3,33 @@ Data management functionality.
 Handles saving and loading CSV files, GUI display formatting, and data population.
 """
 import csv
-import time
+import logging
+from pathlib import Path
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+# Custom exceptions for better error handling
+class DataManagerError(Exception):
+    """Base exception for data manager operations."""
+    pass
+
+
+class CSVError(DataManagerError):
+    """Exception raised for CSV file operations."""
+    pass
+
+
+class DataValidationError(DataManagerError):
+    """Exception raised for data validation issues."""
+    pass
+
+
+class GUIGenerationError(DataManagerError):
+    """Exception raised for GUI string generation issues."""
+    pass
 
 
 class StatisticsCSVHandler:
@@ -41,11 +67,16 @@ class StatisticsCSVHandler:
                 for k, v in self.stats_data.decade_dict.items():
                     writer.writerow(['DECADE', k, v])
                     
-            print(f"Saved statistics to {csv_path}")
+            logger.info(f"Successfully saved statistics to {csv_path}")
             return True
+        except IOError as e:
+            error_msg = f"Failed to write CSV file {csv_path}: {e}"
+            logger.error(error_msg)
+            raise CSVError(error_msg) from e
         except Exception as e:
-            print(f"Error saving CSV: {e}")
-            return False
+            error_msg = f"Unexpected error saving CSV {csv_path}: {e}"
+            logger.error(error_msg)
+            raise CSVError(error_msg) from e
     
     def load_from_csv(self, csv_path):
         """Load statistics from CSV file and return metadata."""
@@ -61,7 +92,6 @@ class StatisticsCSVHandler:
         try:
             with open(csv_path, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
-                header = next(reader, None)
                 for row in reader:
                     if len(row) < 3:
                         continue
@@ -100,19 +130,34 @@ class StatisticsCSVHandler:
                     elif section == 'DECADE':
                         try:
                             self.stats_data.decade_dict[name] += int(count)
-                        except Exception:
-                            pass
-        except FileNotFoundError:
-            print(f"CSV not found: {csv_path}")
-            return None
+                        except (ValueError, KeyError) as e:
+                            logger.warning(f"Failed to process decade data '{name}': {count} - {e}")
+        except FileNotFoundError as e:
+            error_msg = f"CSV file not found: {csv_path}"
+            logger.error(error_msg)
+            raise CSVError(error_msg) from e
+        except IOError as e:
+            error_msg = f"Failed to read CSV file {csv_path}: {e}"
+            logger.error(error_msg)
+            raise CSVError(error_msg) from e
         except Exception as e:
-            print(f"Error loading CSV: {e}")
-            return None
+            error_msg = f"Unexpected error loading CSV {csv_path}: {e}"
+            logger.error(error_msg)
+            raise CSVError(error_msg) from e
+
+        # Validate loaded data
+        if films_num < 0:
+            logger.warning(f"Invalid films count: {films_num}, setting to 0")
+            films_num = 0
+            
+        if total_hours < 0:
+            logger.warning(f"Invalid total hours: {total_hours}, setting to 0")
+            total_hours = 0.0
 
         # Set meta data
         self.stats_data.set_meta_data(films_num, total_hours, total_days, loaded_scraped_at)
         
-        print(f"Loaded statistics from {csv_path}")
+        logger.info(f"Successfully loaded statistics from {csv_path} - {films_num} films, {total_hours:.2f} hours")
         return {
             'films_num': films_num,
             'total_hours': total_hours,
@@ -132,11 +177,26 @@ class DataPopulator:
     
     def populate_all_models(self, stats_data, films_num):
         """Populate all GUI models with statistics data."""
-        self.gui_models.populate_model('countries', stats_data.country_dict, films_num, self.config.list_delim)
-        self.gui_models.populate_model('languages', stats_data.lang_dict, films_num, self.config.list_delim)
-        self.gui_models.populate_model('genres', stats_data.genre_dict, films_num, self.config.list_delim)
-        self.gui_models.populate_model('directors', stats_data.director_dict, films_num, self.config.list_delim)
-        self.gui_models.populate_model('actors', stats_data.actor_dict, films_num, self.config.list_delim)
+        try:
+            if films_num < 0:
+                raise DataValidationError(f"Films count cannot be negative: {films_num}")
+            
+            if not stats_data:
+                raise DataValidationError("Statistics data cannot be None")
+                
+            self.gui_models.populate_model('countries', stats_data.country_dict, films_num, self.config.list_delim)
+            self.gui_models.populate_model('languages', stats_data.lang_dict, films_num, self.config.list_delim)
+            self.gui_models.populate_model('genres', stats_data.genre_dict, films_num, self.config.list_delim)
+            self.gui_models.populate_model('directors', stats_data.director_dict, films_num, self.config.list_delim)
+            self.gui_models.populate_model('actors', stats_data.actor_dict, films_num, self.config.list_delim)
+            
+            logger.debug(f"Successfully populated all GUI models for {films_num} films")
+        except DataValidationError:
+            raise  # Re-raise validation errors
+        except Exception as e:
+            error_msg = f"Failed to populate GUI models: {e}"
+            logger.error(error_msg)
+            raise DataManagerError(error_msg) from e
 
 
 class GUIStringGenerator:
@@ -149,11 +209,21 @@ class GUIStringGenerator:
     
     def generate_all_strings(self, films_num):
         """Generate all GUI display strings from current statistics."""
-        with self.stats_data.lock:
-            self._generate_summary_strings(films_num)
-            self._generate_language_strings(films_num)
-            self._generate_country_strings(films_num)
-            self._print_decade_stats(films_num)
+        try:
+            if films_num < 0:
+                raise DataValidationError(f"Invalid films count: {films_num}")
+                
+            with self.stats_data.lock:
+                self._generate_summary_strings(films_num)
+                self._generate_language_strings(films_num)
+                self._generate_country_strings(films_num)
+                self._print_decade_stats(films_num)
+                
+            logger.debug(f"Generated GUI strings for {films_num} films")
+        except Exception as e:
+            error_msg = f"Failed to generate GUI strings: {e}"
+            logger.error(error_msg)
+            raise GUIGenerationError(error_msg) from e
     
     def _generate_summary_strings(self, films_num):
         """Generate summary strings (watched films and total time)."""
@@ -190,12 +260,15 @@ class GUIStringGenerator:
     
     def _print_decade_stats(self, films_num):
         """Print decade statistics to console."""
-        sorted_decades = dict(sorted(self.stats_data.decade_dict.items(), key=lambda x: x[1], reverse=True))
-        if sorted_decades:
-            print("\nDecade            Films        Percentage")
-            for k, v in sorted_decades.items():
-                percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
-                print(f"{k:<20}{v:>10}{percent:>15}")
+        try:
+            sorted_decades = dict(sorted(self.stats_data.decade_dict.items(), key=lambda x: x[1], reverse=True))
+            if sorted_decades:
+                print("\nDecade            Films        Percentage")
+                for k, v in sorted_decades.items():
+                    percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
+                    print(f"{k:<20}{v:>10}{percent:>15}")
+        except Exception as e:
+            logger.warning(f"Failed to generate decade statistics: {e}")
 
 
 class DataManager:
@@ -215,22 +288,62 @@ class DataManager:
     
     def save_stats_to_csv(self, username, scraped_at, films_num, total_hours, total_days, csv_path):
         """Save all extracted statistics to a CSV file."""
-        return self.csv_handler.save_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path)
+        try:
+            # Validate inputs
+            if not username:
+                raise DataValidationError("Username cannot be empty")
+            if films_num < 0:
+                raise DataValidationError(f"Films count cannot be negative: {films_num}")
+            if total_hours < 0:
+                raise DataValidationError(f"Total hours cannot be negative: {total_hours}")
+            if not csv_path:
+                raise DataValidationError("CSV path cannot be empty")
+                
+            return self.csv_handler.save_to_csv(username, scraped_at, films_num, total_hours, total_days, csv_path)
+        except (CSVError, DataValidationError):
+            raise  # Re-raise our custom exceptions
+        except Exception as e:
+            error_msg = f"Unexpected error in save_stats_to_csv: {e}"
+            logger.error(error_msg)
+            raise DataManagerError(error_msg) from e
     
     def load_stats_from_csv(self, csv_path):
         """Load statistics from a CSV file into data structures."""
-        # Reset GUI models
-        self.gui_models.clear_all()
-        
-        # Load data using CSV handler
-        meta = self.csv_handler.load_from_csv(csv_path)
-        
-        if meta:
-            # Populate GUI models with loaded data
-            self.data_populator.populate_all_models(self.stats_data, meta['films_num'])
-        
-        return meta
+        try:
+            if not csv_path:
+                raise DataValidationError("CSV path cannot be empty")
+            
+            # Validate file exists
+            csv_file = Path(csv_path)
+            if not csv_file.exists():
+                raise CSVError(f"CSV file does not exist: {csv_path}")
+            
+            # Reset GUI models
+            self.gui_models.clear_all()
+            
+            # Load data using CSV handler
+            meta = self.csv_handler.load_from_csv(csv_path)
+            
+            if meta:
+                # Populate GUI models with loaded data
+                self.data_populator.populate_all_models(self.stats_data, meta['films_num'])
+                logger.info(f"Successfully loaded and populated data from {csv_path}")
+            
+            return meta
+        except (CSVError, DataValidationError):
+            raise  # Re-raise our custom exceptions
+        except Exception as e:
+            error_msg = f"Unexpected error in load_stats_from_csv: {e}"
+            logger.error(error_msg)
+            raise DataManagerError(error_msg) from e
     
     def generate_gui_strings(self, films_num):
         """Generate GUI display strings from current statistics."""
-        self.gui_generator.generate_all_strings(films_num)
+        try:
+            self.gui_generator.generate_all_strings(films_num)
+        except (GUIGenerationError, DataValidationError):
+            raise  # Re-raise our custom exceptions
+        except Exception as e:
+            error_msg = f"Unexpected error in generate_gui_strings: {e}"
+            logger.error(error_msg)
+            raise DataManagerError(error_msg) from e
