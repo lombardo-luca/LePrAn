@@ -19,7 +19,7 @@ class LoginThread(QThread):
     """Thread for running the login/scraping process."""
     doneSignal = pyqtSignal()
 
-    def __init__(self, login, app_context):
+    def __init__(self, login: str, app_context):
         super().__init__()
         self.login = login
         self.app_context = app_context
