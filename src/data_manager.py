@@ -205,7 +205,8 @@ class GUIStringGenerator:
     def _generate_summary_strings(self, films_num: int) -> None:
         """Generate summary strings (watched films and total time)."""
         self.stats_data.gui_watched1 = "Films watched: " + str(films_num)
-        self.stats_data.gui_watched2 = "Total running time: " + "%.2f" % self.stats_data.total_hours + " hours (%.2f" % self.stats_data.total_days + " days)"
+        rounded_hours = int(round(self.stats_data.total_hours))
+        self.stats_data.gui_watched2 = f"Total running time: {rounded_hours} hours (%.2f" % self.stats_data.total_days + " days)"
     
     def _generate_language_strings(self, films_num: int) -> None:
         """Generate language statistics strings."""
