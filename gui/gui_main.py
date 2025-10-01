@@ -158,7 +158,7 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "Letterboxd Profile Analyzer"))
         self.label_3.setText(_translate("MainWindow", "Insert your Letterboxd username:"))
         self.pushButton.setText(_translate("MainWindow", "Analyze"))
-        self.label_4.setText(_translate("MainWindow", "Or load from a .csv:"))
+        self.label_4.setText(_translate("MainWindow", "Or load data from a .csv:"))
         self.pushButton_2.setText(_translate("MainWindow", "Load"))
         self.menuOptions.setTitle(_translate("MainWindow", "Options"))
         self.menuInfo.setTitle(_translate("MainWindow", "Info"))
