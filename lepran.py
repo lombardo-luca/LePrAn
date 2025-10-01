@@ -10,6 +10,7 @@ from src.context import AppContext
 from src.main_window import MainWindow
 
 
+
 # Configure logging for the application
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +18,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# Suppress urllib3 connection pool full warnings globally using logging
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
 
 def main():
