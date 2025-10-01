@@ -106,13 +106,35 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.settings = Ui_Dialog_Settings()
         self.settings.setupUi(self.dialogSettings)
         self.settings.spinBox.setValue(int(self.app_context.config.max_threads))
-        logger.debug(f"Opening settings dialog with max_threads: {self.app_context.config.max_threads}")
-        
+
+        # Set comboBox to match config.scraper_profile
+        profile = self.app_context.config.scraper_profile
+        if profile == "async":
+            self.settings.comboBox.setCurrentIndex(0)
+        elif profile == "optimized":
+            self.settings.comboBox.setCurrentIndex(1)
+        elif profile == "legacy":
+            self.settings.comboBox.setCurrentIndex(2)
+        else:
+            self.settings.comboBox.setCurrentIndex(0)
+
+
+
         def save():
             self.app_context.config.max_threads = self.settings.spinBox.value()
+            # Save scraper_profile from comboBox
+            idx = self.settings.comboBox.currentIndex()
+            if idx == 0:
+                self.app_context.config.scraper_profile = "async"
+            elif idx == 1:
+                self.app_context.config.scraper_profile = "optimized"
+            elif idx == 2:
+                self.app_context.config.scraper_profile = "legacy"
+            else:
+                self.app_context.config.scraper_profile = "async"
             self.app_context.config.save_config()
-            logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}")
-        
+            logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}, scraper_profile: {self.app_context.config.scraper_profile}")
+
         self.settings.save_button = QtWidgets.QDialogButtonBox.StandardButton.Save
         self.dialogSettings.accepted.connect(save)
         self.dialogSettings.show()

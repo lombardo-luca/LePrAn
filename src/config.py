@@ -44,6 +44,7 @@ class Config:
                                 if value.lower() in ['legacy', 'optimized', 'async']:
                                     self.scraper_profile = value.lower()
                 logger.info("Config file loaded.")
+                logger.debug(f"Config loaded: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")
             except (IOError, ValueError) as e:
                 logger.warning(f"Error reading config: {e}")
             except Exception as e:
@@ -72,6 +73,7 @@ class Config:
                 f.write(f"workerThreadsNumber:{self.max_threads}\n")
                 f.write(f"scraperProfile:{self.scraper_profile}\n")
             logger.info("Config saved.")
+            logger.debug(f"Config saved: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")
         except IOError as e:
             logger.error(f"Error saving config: {e}")
         except Exception as e:
