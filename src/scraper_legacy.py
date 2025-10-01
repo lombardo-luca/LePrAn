@@ -310,12 +310,13 @@ class LegacyLetterboxdScraper:
                         speed = completed / elapsed_time
                         eta_seconds = remaining / speed if speed > 0 else 0
                         
-                        # Format ETA
+                        # Format ETA as Xm Ys or just Xs
                         if eta_seconds < 60:
-                            eta_str = f"{eta_seconds:.0f}s"
+                            eta_str = f"{int(eta_seconds)}s"
                         else:
-                            eta_minutes = eta_seconds / 60
-                            eta_str = f"{eta_minutes:.1f}m"
+                            minutes = int(eta_seconds // 60)
+                            seconds = int(eta_seconds % 60)
+                            eta_str = f"{minutes}m{seconds}s"
                         
                         # Clear line first, then print progress
                         print(f'\r{" " * 120}\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining | ETA: {eta_str}', end='', flush=True)
