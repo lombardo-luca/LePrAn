@@ -8,7 +8,8 @@ import logging
 from PyQt6 import QtWidgets, QtGui
 from src.context import AppContext
 from src.main_window import MainWindow
-
+import colorama
+colorama.init()
 
 
 # Configure logging for the application
@@ -53,4 +54,5 @@ def main():
 
 
 if __name__ == "__main__":
+    colorama.init()
     main()

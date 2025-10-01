@@ -2,6 +2,7 @@
 Ultra-fast async scraper with significant performance improvements.
 Expected 2-5x speed improvement over current implementation.
 """
+import sys
 import asyncio
 import aiohttp
 import time
@@ -142,10 +143,12 @@ class AsyncLetterboxdScraper:
                         seconds = int(eta_seconds % 60)
                         eta_str = f"{minutes}m{seconds}s"
                     
-                    # Clear line first, then print progress
-                    print(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining | ETA: {eta_str}", end='', flush=True)
+                    # Clear line first, then print progress using sys.stdout for better compatibility
+                    sys.stdout.write(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining | ETA: {eta_str}")
+                    sys.stdout.flush()
                 else:
-                    print(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining", end='', flush=True)
+                    sys.stdout.write(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining")
+                    sys.stdout.flush()
             
             return film_data.get('runtime', 0)
             
@@ -368,7 +371,7 @@ class AsyncLetterboxdScraper:
                 self.app_context.stats_data.add_url(url)
             
             # Process all films concurrently with async
-            print("Analyzing films with async processing...")
+            print(f"Analyzing films with async scraper...")
             analysis_start = time.time()
             
             # Reset progress counter

@@ -7,6 +7,7 @@ import time
 import requests
 import concurrent.futures
 import logging
+import sys
 from bs4 import BeautifulSoup
 from collections import defaultdict
 import threading
@@ -336,7 +337,7 @@ class LetterboxdScraper:
             return None
         
         # Process films with optimized threading
-        print("Analyzing films...")
+        print("Analyzing films with optimized scraper...")
         analysis_start = time.time()
         
         # Use adaptive thread count based on number of films
@@ -350,39 +351,37 @@ class LetterboxdScraper:
             runtime_list = []
             completed = 0
             
+            last_progress_update = 0
+            total = len(self.app_context.stats_data.url_list)
             for future in concurrent.futures.as_completed(futures):
                 try:
                     runtime = future.result()
                     runtime_list.append(runtime)
                     completed += 1
-                    
-                    # Show progress bar with ETA
-                    total = len(self.app_context.stats_data.url_list)
-                    elapsed_time = time.time() - analysis_start
-                    percentage = (completed / total) * 100
-                    bar_length = 40
-                    filled = int(bar_length * completed / total)
-                    bar = '█' * filled + '░' * (bar_length - filled)
-                    remaining = total - completed
-                    
-                    # Calculate ETA
-                    if completed > 0 and elapsed_time > 0:
-                        speed = completed / elapsed_time
-                        eta_seconds = remaining / speed if speed > 0 else 0
-                        
-                        # Format ETA as Xm Ys or just Xs
-                        if eta_seconds < 60:
-                            eta_str = f"{int(eta_seconds)}s"
+                    current_time = time.time()
+                    # Only update progress bar every 0.1s or on completion
+                    if current_time - last_progress_update >= 0.1 or completed == total:
+                        last_progress_update = current_time
+                        elapsed_time = current_time - analysis_start
+                        progress = (completed / total) * 100
+                        bar_length = 40
+                        filled = int(bar_length * completed / total)
+                        bar = '█' * filled + '░' * (bar_length - filled)
+                        remaining = total - completed
+                        if completed > 0 and elapsed_time > 0:
+                            speed = completed / elapsed_time
+                            eta_seconds = remaining / speed if speed > 0 else 0
+                            if eta_seconds < 60:
+                                eta_str = f"{int(eta_seconds)}s"
+                            else:
+                                minutes = int(eta_seconds // 60)
+                                seconds = int(eta_seconds % 60)
+                                eta_str = f"{minutes}m{seconds}s"
+                            sys.stdout.write(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {completed}/{total} films | {remaining} remaining | ETA: {eta_str}")
+                            sys.stdout.flush()
                         else:
-                            minutes = int(eta_seconds // 60)
-                            seconds = int(eta_seconds % 60)
-                            eta_str = f"{minutes}m{seconds}s"
-                        
-                        # Clear line first, then print progress
-                        print(f'\r{" " * 120}\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining | ETA: {eta_str}', end='', flush=True)
-                    else:
-                        print(f'\r{" " * 120}\r[{bar}] {percentage:.1f}% | {completed}/{total} films | {remaining} remaining', end='', flush=True)
-                        
+                            sys.stdout.write(f"\r{' ' * 120}\r[{bar}] {progress:.1f}% | {completed}/{total} films | {remaining} remaining")
+                            sys.stdout.flush()
                 except Exception as e:
                     logger.warning(f"Failed to process film: {e}")
                     runtime_list.append(0)
