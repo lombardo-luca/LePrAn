@@ -1,6 +1,5 @@
 """
-Legacy web scraping functionality.
-Handles scraping Letterboxd profiles and extracting film data.
+Legacy web scraper.
 """
 import requests
 import re

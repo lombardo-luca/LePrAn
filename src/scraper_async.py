@@ -1,6 +1,5 @@
 """
-Ultra-fast async scraper with significant performance improvements.
-Expected 2-5x speed improvement over current implementation.
+Fast async scraper.
 """
 import sys
 import asyncio
@@ -19,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 class AsyncLetterboxdScraper:
     """
-    Ultra-fast async scraper with major performance optimizations:
-    - True async/await with aiohttp for concurrent HTTP requests
-    - Connection pooling and session reuse
-    - Intelligent batching and request pipelining
-    - Minimal DOM parsing with targeted selectors
-    - In-memory data aggregation to reduce lock contention
+    Fast async scraper with:
+    - concurrent HTTP requests
+    - connection pooling
+    - batching and request pipelining
+    - minimal DOM parsing
+    - in-memory data aggregation
     """
     
     def __init__(self, app_context):

@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 class LetterboxdScraper:
     """
-    Enhanced scraper with performance optimizations:
-    - Connection pooling and session reuse
-    - Batch data processing
-    - Single DOM traversal for data extraction
+    Enhanced scraper with:
+    - connection pooling
+    - batch data processing
+    - single DOM traversal
     """
     
     def __init__(self, app_context):
