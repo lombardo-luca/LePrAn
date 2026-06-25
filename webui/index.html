@@ -122,6 +122,8 @@
                                         @click="leftPanel = 'languages'">🗣️ Languages</button>
                                 <button :class="['selector-btn', { active: leftPanel === 'genres' }]" 
                                         @click="leftPanel = 'genres'">🎭 Genres</button>
+                                <button :class="['selector-btn', { active: leftPanel === 'decades' }]" 
+                                        @click="leftPanel = 'decades'">📅 Decades</button>
                             </div>
                         </div>
                         <div class="stat-panel">
@@ -232,6 +234,42 @@
                                 </div>
                                 <div class="chart-container">
                                     <canvas id="genresChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Decades Content -->
+                            <div class="panel-content" x-show="leftPanel === 'decades'" x-transition>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead><tr><th>Rank</th><th>Decade</th><th>Films</th><th>%</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(item, idx) in sortedData.decades" :key="idx">
+                                                <tr>
+                                                    <td x-text="idx + 1"></td>
+                                                    <td x-text="item.name"></td>
+                                                    <td x-text="item.count"></td>
+                                                    <td x-text="item.percent"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <!-- Show All/Less Toggle -->
+                                <div class="category-toggle-container" x-show="rawData.decades.length > 100">
+                                    <button @click="toggleDecades()" class="btn btn-small btn-outline category-toggle-btn">
+                                        <span x-show="!decadesExpanded">Show All</span>
+                                        <span x-show="decadesExpanded">Show Less</span>
+                                    </button>
+                                    <span class="category-count-info" x-show="!decadesExpanded && rawData.decades.length > 100">
+                                        Showing top 100 of <span x-text="rawData.decades.length"></span> decades
+                                    </span>
+                                </div>
+                                <!-- Chart Type Toggle -->
+                                <div class="chart-type-toggle">
+                                    <button @click="toggleChartType('decades')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('decades')"></button>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="decadesChart"></canvas>
                                 </div>
                             </div>
                         </div>

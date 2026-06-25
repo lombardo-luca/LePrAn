@@ -231,7 +231,8 @@ class WebAPI:
             'languages': json.dumps(stats.lang_dict),
             'genres': json.dumps(stats.genre_dict),
             'directors': json.dumps(stats.director_dict),
-            'actors': json.dumps(stats.actor_dict)
+            'actors': json.dumps(stats.actor_dict),
+            'decades': json.dumps(dict(stats.decade_dict))
         }
     
     def load_saved_csv(self):
@@ -286,7 +287,8 @@ class WebAPI:
                 'languages': json.dumps(stats.lang_dict),
                 'genres': json.dumps(stats.genre_dict),
                 'directors': json.dumps(stats.director_dict),
-                'actors': json.dumps(stats.actor_dict)
+                'actors': json.dumps(stats.actor_dict),
+                'decades': json.dumps(dict(stats.decade_dict))
             }
             
             logger.info(f"load_saved_csv: returning result with total_hours={result['total_hours']}")
@@ -323,6 +325,7 @@ class WebAPI:
             genres = {item['name']: item['count'] for item in data.get('genres', [])}
             directors = {item['name']: item['count'] for item in data.get('directors', [])}
             actors = {item['name']: item['count'] for item in data.get('actors', [])}
+            decades = {item['name']: item['count'] for item in data.get('decades', [])}
             
             # Update stats data with saved values
             stats = self.app_context.stats_data
@@ -342,6 +345,8 @@ class WebAPI:
             stats.director_dict.update(directors)
             stats.actor_dict.clear()
             stats.actor_dict.update(actors)
+            stats.decade_dict.clear()
+            stats.decade_dict.update(decades)
             
             # Save to CSV using data manager
             success = self.data_manager.save_stats_to_csv(

@@ -48,6 +48,7 @@ function lepranApp() {
          genresExpanded: false,
          directorsExpanded: false,
          actorsExpanded: false,
+         decadesExpanded: false,
          
           // Raw category data from backend
           rawData: {
@@ -55,7 +56,8 @@ function lepranApp() {
               languages: [],
               genres: [],
               directors: [],
-              actors: []
+              actors: [],
+              decades: []
           },
           
           // Chart type preferences per category ('bar' or 'pie')
@@ -64,7 +66,8 @@ function lepranApp() {
               languages: 'bar',
               genres: 'bar',
               directors: 'bar',
-              actors: 'bar'
+              actors: 'bar',
+              decades: 'bar'
           },
           
           // Pie chart slice limit (top N slices, rest grouped as "Other")
@@ -79,7 +82,8 @@ function lepranApp() {
                  languages: this.languagesExpanded,
                  genres: this.genresExpanded,
                  directors: this.directorsExpanded,
-                 actors: this.actorsExpanded
+                 actors: this.actorsExpanded,
+                 decades: this.decadesExpanded
              };
              for (const key of Object.keys(this.rawData)) {
                  let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
@@ -156,7 +160,8 @@ function lepranApp() {
                 languages: 'languagesChart',
                 genres: 'genresChart',
                 directors: 'directorsChart',
-                actors: 'actorsChart'
+                actors: 'actorsChart',
+                decades: 'decadesChart'
             };
             const chartId = categoryToChartId[category];
             if (!chartId) return;
@@ -194,14 +199,16 @@ function lepranApp() {
                 languages: this.rawData.languages,
                 genres: this.rawData.genres,
                 directors: this.rawData.directors,
-                actors: this.rawData.actors
+                actors: this.rawData.actors,
+                decades: this.rawData.decades
             };
             const colorMap = {
                 countries: '#58a6ff',
                 languages: '#3fb950',
                 genres: '#bc8cff',
                 directors: '#d29922',
-                actors: '#f85149'
+                actors: '#f85149',
+                decades: '#f0883e'
             };
             
             this._createChart({
@@ -373,6 +380,7 @@ function lepranApp() {
                 this.rawData.genres = this.parseDictResult(result.genres);
                 this.rawData.directors = this.parseDictResult(result.directors);
                 this.rawData.actors = this.parseDictResult(result.actors);
+                this.rawData.decades = this.parseDictResult(result.decades);
                 
                 // Initialize charts after DOM updates
                 this.$nextTick(() => {
@@ -479,6 +487,10 @@ function lepranApp() {
             this.actorsExpanded = !this.actorsExpanded;
         },
         
+        toggleDecades() {
+            this.decadesExpanded = !this.decadesExpanded;
+        },
+        
         // Reset to input screen for new analysis
         resetToInput() {
             // Clean up polling interval if still active
@@ -491,7 +503,7 @@ function lepranApp() {
             this.selectedFile = null;
             this.selectedFileName = '';
             this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, scrapedAt: '' };
-            this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [] };
+            this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
             
             // Destroy charts to free memory
             this.destroyCharts();
@@ -512,7 +524,8 @@ function lepranApp() {
                         languages: this.rawData.languages,
                         genres: this.rawData.genres,
                         directors: this.rawData.directors,
-                        actors: this.rawData.actors
+                        actors: this.rawData.actors,
+                        decades: this.rawData.decades
                     });
                     
                     if (result && result.success) {
@@ -640,7 +653,8 @@ function lepranApp() {
                 { id: 'languagesChart', data: this.rawData.languages, color: '#3fb950', category: 'languages' },
                 { id: 'genresChart', data: this.rawData.genres, color: '#bc8cff', category: 'genres' },
                 { id: 'directorsChart', data: this.rawData.directors, color: '#d29922', category: 'directors' },
-                { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' }
+                { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' },
+                { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' }
             ];
             
             chartConfigs.forEach(config => {
@@ -889,6 +903,15 @@ function lepranApp() {
                     'Idris Elba': 4,
                     'Saoirse Ronan': 3,
                     'Timothée Chalamet': 3
+                }),
+                decades: JSON.stringify({
+                    '2020s': 15,
+                    '2010s': 42,
+                    '2000s': 38,
+                    '1990s': 28,
+                    '1980s': 12,
+                    '1970s': 5,
+                    '1960s': 2
                 })
             };
         },
@@ -903,7 +926,8 @@ function lepranApp() {
                 languages: this.rawData.languages,
                 genres: this.rawData.genres,
                 directors: this.rawData.directors,
-                actors: this.rawData.actors
+                actors: this.rawData.actors,
+                decades: this.rawData.decades
             };
             
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
