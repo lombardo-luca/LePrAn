@@ -13,9 +13,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from gui.gui_main import Ui_MainWindow
 from gui.gui_results import Ui_Dialog
 from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
-from .scraper_optimized import LetterboxdScraper
-from .scraper_legacy import LegacyLetterboxdScraper
-from .scraper_async import AsyncLetterboxdScraper
 from .scraper_tmdb import TMDbScraper
 from .data_manager import DataManager
 
@@ -32,16 +29,7 @@ class LoginThread(QThread):
         super().__init__()
         self.login = login
         self.app_context = app_context
-        
-        # Select scraper based on configuration
-        if app_context.config.scraper_profile == "legacy":
-            self.scraper = LegacyLetterboxdScraper(app_context)
-        elif app_context.config.scraper_profile == "async":
-            self.scraper = AsyncLetterboxdScraper(app_context)
-        elif app_context.config.scraper_profile == "tmdb":
-            self.scraper = TMDbScraper(app_context)
-        else:  # Default to optimized scraper
-            self.scraper = LetterboxdScraper(app_context)
+        self.scraper = TMDbScraper(app_context)
 
     def run(self):
         self.scraper.scrape_user_profile(self.login)
@@ -94,24 +82,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.loginInput = None
         self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         
-        # Check if TMDB scraper is configured - adjust UI accordingly
-        self.use_tmdb_scraper = (self.app_context.config.scraper_profile == "tmdb")
-        
-        if self.use_tmdb_scraper:
-            # Show CSV file picker label/button instead of username input
-            self.label_3.setText("Select Letterboxd export CSV:")
-            self.lineEdit.setVisible(False)
-            self.pushButton.setText("Analyze with TMDB")
-        else:
-            self.label_3.setText("Insert your Letterboxd username:")
-            self.pushButton.setText("Analyze")
+        # Always use TMDB scraper - show CSV file picker
+        self.label_3.setText("Select Letterboxd export CSV:")
+        self.lineEdit.setVisible(False)
+        self.pushButton.setText("Analyze with TMDB")
         
         self.pushButton.clicked.connect(self.analyze)
         # Wire Load button to open-file CSV loader
         self.pushButton_2.clicked.connect(self.load_from_csv)
 
     def analyze(self):
-        """Start analyzing based on the configured scraper type."""
+        """Start analyzing with TMDB API from CSV file."""
         # Reset data for new search
         self.app_context.stats_data.reset()
         self.app_context.gui_models.clear_all()
@@ -124,40 +105,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.pushButton_save.setEnabled(True)
             self.ui.pushButton_save.setText("Save results")
         
-        if self.use_tmdb_scraper:
-            # Open file dialog to select CSV
-            csv_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select Letterboxd Export CSV",
-                os.path.abspath('.'),
-                "CSV Files (*.csv)"
-            )
-            
-            if not csv_path:
-                self.pushButton.setEnabled(True)
-                self.pushButton.setText("Analyze with TMDB")
-                return
-            
-            # Set username from filename
-            try:
-                self.loginInput = os.path.splitext(os.path.basename(csv_path))[0]
-            except (OSError, ValueError):
-                self.loginInput = "tmdb_analysis"
-            
-            logger.info(f"Starting TMDB analysis for CSV: {csv_path}")
+        # Open file dialog to select CSV
+        csv_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Letterboxd Export CSV",
+            os.path.abspath('.'),
+            "CSV Files (*.csv)"
+        )
+        
+        if not csv_path:
+            self.pushButton.setEnabled(True)
+            self.pushButton.setText("Analyze with TMDB")
+            return
+        
+        # Set username from filename
+        try:
+            self.loginInput = os.path.splitext(os.path.basename(csv_path))[0]
+        except (OSError, ValueError):
+            self.loginInput = "tmdb_analysis"
+        
+        logger.info(f"Starting TMDB analysis for CSV: {csv_path}")
 
-            # Run TMDB analysis in a thread
-            self.thread = TMDBAnalysisThread(csv_path, self.app_context)
-            self.thread.doneSignal.connect(self.loginComplete)
-            self.thread.start()
-        else:
-            self.loginInput = self.lineEdit.text()
-            logger.info(f"Starting analysis for user: {self.loginInput}")
-
-            # Run login function inside of a thread
-            self.thread = LoginThread(self.loginInput, self.app_context)
-            self.thread.doneSignal.connect(self.loginComplete)
-            self.thread.start()
+        # Run TMDB analysis in a thread
+        self.thread = TMDBAnalysisThread(csv_path, self.app_context)
+        self.thread.doneSignal.connect(self.loginComplete)
+        self.thread.start()
 
     def open_settings_dialog(self):
         """Open the settings dialog."""
@@ -166,49 +138,22 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.settings.setupUi(self.dialogSettings)
         self.settings.spinBox.setValue(int(self.app_context.config.max_threads))
 
-        # Set comboBox to match config.scraper_profile
-        profile = self.app_context.config.scraper_profile
-        if profile == "tmdb":
-            self.settings.comboBox.setCurrentIndex(0)
-        elif profile == "async":
-            self.settings.comboBox.setCurrentIndex(1)
-        elif profile == "optimized":
-            self.settings.comboBox.setCurrentIndex(2)
-        elif profile == "legacy":
-            self.settings.comboBox.setCurrentIndex(3)
-        else:
-            self.settings.comboBox.setCurrentIndex(0)
-
-
+        # Hide scraper profile label since only TMDB is available
+        self.settings.label_3.setVisible(False)
 
         def save():
             self.app_context.config.max_threads = self.settings.spinBox.value()
-            # Save scraper_profile from comboBox
-            idx = self.settings.comboBox.currentIndex()
-            if idx == 0:
-                self.app_context.config.scraper_profile = "tmdb"
-            elif idx == 1:
-                self.app_context.config.scraper_profile = "async"
-            elif idx == 2:
-                self.app_context.config.scraper_profile = "optimized"
-            elif idx == 3:
-                self.app_context.config.scraper_profile = "legacy"
-            else:
-                self.app_context.config.scraper_profile = "tmdb"
             self.app_context.config.save_config()
-            logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}, scraper_profile: {self.app_context.config.scraper_profile}")
+            logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}")
 
         self.settings.save_button = QtWidgets.QDialogButtonBox.StandardButton.Save
         self.dialogSettings.accepted.connect(save)
         self.dialogSettings.show()
 
     def loginComplete(self):
-        """Handle completion of login/scraping process."""
+        """Handle completion of TMDB analysis process."""
         # Re-enable the Analyze button for new searches
-        if self.use_tmdb_scraper:
-            self.pushButton.setText("Analyze with TMDB")
-        else:
-            self.pushButton.setText("Analyze")
+        self.pushButton.setText("Analyze with TMDB")
         self.pushButton.setEnabled(True)
         
         # Generate GUI strings

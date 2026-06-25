@@ -17,7 +17,7 @@ class Config:
     def __init__(self):
         self.max_threads = 20
         self.list_delim = 200
-        self.scraper_profile = "async"  # Use "legacy", "optimized", "async", or "tmdb"
+        self.scraper_profile = "tmdb"  # Only TMDB API is now supported
         self.tmdb_access_token = ""
         self.config_path = self.get_resource_path('cfg/config.txt')
         self._load_env()
@@ -73,8 +73,8 @@ class Config:
                             if key == 'workerThreadsNumber':
                                 self.max_threads = int(value)
                             elif key == 'scraperProfile':
-                                if value.lower() in ['legacy', 'optimized', 'async', 'tmdb']:
-                                    self.scraper_profile = value.lower()
+                                # scraperProfile key is kept for backward compatibility but only "tmdb" is valid
+                                self.scraper_profile = "tmdb"
                 logger.info("Config file loaded.")
                 logger.debug(f"Config loaded: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")
             except (IOError, ValueError) as e:
@@ -90,8 +90,8 @@ class Config:
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, 'w') as f:
                 f.write("workerThreadsNumber:20\n")
-                f.write("scraperProfile:async\n")
-            logger.info("Config file created with async scraper as default.")
+                f.write("scraperProfile:tmdb\n")
+            logger.info("Config file created with TMDB API as default.")
         except IOError as e:
             logger.error(f"Error creating config: {e}")
         except Exception as e:
