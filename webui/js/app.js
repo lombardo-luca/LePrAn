@@ -473,7 +473,8 @@ function lepranApp() {
                                 },
                                 ticks: {
                                     color: '#8b949e',
-                                    font: { size: 11 }
+                                    font: { size: 11 },
+                                    autoSkip: false
                                 }
                             }
                         }
