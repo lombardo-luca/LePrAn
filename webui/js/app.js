@@ -5,14 +5,23 @@
 
 function lepranApp() {
     return {
-        // State
-        logoPath: 'assets/logo.png',
-        selectedFile: null,
-        selectedFileName: '',
-        isAnalyzing: false,
-        progressPercent: 0,
-        analysisProgress: '0%',
-        hasResults: false,
+         // State
+         logoPath: 'assets/logo.png',
+         selectedFile: null,
+         selectedFileName: '',
+         isAnalyzing: false,
+         progressPercent: 0,
+         analysisProgress: 'Starting...',
+         hasResults: false,
+         
+         // Detailed progress stats
+         filmsProcessed: 0,
+         filmsTotal: 0,
+         processingSpeed: 0,
+         etaSeconds: 0,
+        
+        // Reference to this app instance for global callback
+        _appRef: null,
         
         // Charts instances
         charts: {},
@@ -46,6 +55,9 @@ function lepranApp() {
         // Initialize
         init() {
             console.log('LePrAn Web UI initialized');
+            
+            // Store reference for global callback
+            this._appRef = this;
             
             // Check if we're running in pywebview
             if (window.pywebview) {
@@ -85,9 +97,15 @@ function lepranApp() {
                     const csvContent = e.target.result;
                     
                     if (window.pywebview && window.pywebview.api) {
-                        // Call Python API directly with CSV content
+                        // Start analysis (returns immediately)
                         window.pywebview.api.analyze_csv_content(csvContent).then((result) => {
-                            this.onAnalysisComplete(result);
+                            if (result.status === 'started') {
+                                // Start polling for progress
+                                this._startProgressPolling();
+                            } else if (result.success) {
+                                // Count-only result returned directly
+                                this.onAnalysisComplete(result);
+                            }
                         }).catch((err) => {
                             this.onAnalysisError(err);
                         });
@@ -106,6 +124,45 @@ function lepranApp() {
             } catch (error) {
                 this.onAnalysisError(error.message || 'Unknown error');
             }
+        },
+        
+        // Start polling for analysis progress
+        _startProgressPolling() {
+            // Clear any existing polling interval
+            if (this._progressInterval) {
+                clearInterval(this._progressInterval);
+            }
+            
+            // Poll every 500ms
+            this._progressInterval = setInterval(async () => {
+                try {
+                    const progress = await window.pywebview.api.get_analysis_progress();
+                    
+                    // Update progress bar and status
+                    this.progressPercent = progress.percent;
+                    this.analysisProgress = progress.status;
+                    
+                    // Update detailed progress stats
+                    this.filmsProcessed = progress.films_processed || 0;
+                    this.filmsTotal = progress.films_total || 0;
+                    this.processingSpeed = progress.speed || 0;
+                    this.etaSeconds = progress.eta_seconds || 0;
+                    
+                    // Check if analysis is complete
+                    if (!progress.running) {
+                        clearInterval(this._progressInterval);
+                        this._progressInterval = null;
+                        
+                        if (progress.error) {
+                            this.onAnalysisError(progress.error);
+                        } else if (progress.result) {
+                            this.onAnalysisComplete(progress.result);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Progress poll error:', err);
+                }
+            }, 500);
         },
         
         // Load saved LePrAn CSV data
@@ -131,7 +188,21 @@ function lepranApp() {
         // Handle successful analysis completion
         onAnalysisComplete(result) {
             this.isAnalyzing = false;
+            this.progressPercent = 100;
+            this.analysisProgress = 'Complete!';
             this.hasResults = true;
+            
+            // Reset detailed progress stats
+            this.filmsProcessed = 0;
+            this.filmsTotal = 0;
+            this.processingSpeed = 0;
+            this.etaSeconds = 0;
+            
+            // Clean up polling interval if still active
+            if (this._progressInterval) {
+                clearInterval(this._progressInterval);
+                this._progressInterval = null;
+            }
             
             // Parse result data
             if (result.success) {
@@ -163,7 +234,20 @@ function lepranApp() {
         onAnalysisError(error) {
             this.isAnalyzing = false;
             this.progressPercent = 0;
-            this.analysisProgress = '0%';
+            this.analysisProgress = 'Failed';
+            
+            // Reset detailed progress stats
+            this.filmsProcessed = 0;
+            this.filmsTotal = 0;
+            this.processingSpeed = 0;
+            this.etaSeconds = 0;
+            
+            // Clean up polling interval if still active
+            if (this._progressInterval) {
+                clearInterval(this._progressInterval);
+                this._progressInterval = null;
+            }
+            
             alert('Error: ' + (error || 'Analysis failed'));
         },
         
@@ -207,8 +291,27 @@ function lepranApp() {
             return `${h}h ${m}m`;
         },
         
+        // Format ETA in seconds to readable string (e.g., "2m30s", "1h15m", "45s")
+        formatETA(seconds) {
+            if (!seconds || seconds <= 0) return 'Calculating...';
+            const s = Math.round(seconds);
+            if (s < 60) return `${s}s`;
+            const m = Math.floor(s / 60);
+            const remS = s % 60;
+            if (m < 60) return remS > 0 ? `${m}m${remS}s` : `${m}m`;
+            const h = Math.floor(m / 60);
+            const remM = m % 60;
+            return remM > 0 ? `${h}h${remM}m` : `${h}h`;
+        },
+        
         // Reset to input screen for new analysis
         resetToInput() {
+            // Clean up polling interval if still active
+            if (this._progressInterval) {
+                clearInterval(this._progressInterval);
+                this._progressInterval = null;
+            }
+            
             this.hasResults = false;
             this.selectedFile = null;
             this.selectedFileName = '';
@@ -460,3 +563,22 @@ function lepranApp() {
         }
     };
 }
+
+// ============================================
+// Global progress callback (called from Python via evaluate_js)
+// This receives real-time progress updates pushed from the backend.
+// Signature: __lepranProgress(percent, status, filmsProcessed, filmsTotal, speed, etaSeconds)
+// ============================================
+window.__lepranProgress = function(percent, status, filmsProcessed, filmsTotal, speed, etaSeconds) {
+    // Try to find the Alpine.js component instance
+    const appEl = document.querySelector('[x-data="lepranApp"]');
+    if (appEl && appEl.__x) {
+        const data = appEl.__x.$data;
+        data.progressPercent = percent;
+        data.analysisProgress = status;
+        data.filmsProcessed = filmsProcessed || 0;
+        data.filmsTotal = filmsTotal || 0;
+        data.processingSpeed = speed || 0;
+        data.etaSeconds = etaSeconds || 0;
+    }
+};

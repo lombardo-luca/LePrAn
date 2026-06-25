@@ -30,9 +30,10 @@ class TMDbScraper:
     MAX_RETRIES = 5
     INITIAL_RETRY_DELAY = 2.0  # seconds
     
-    def __init__(self, app_context):
+    def __init__(self, app_context, progress_callback=None):
         self.app_context = app_context
         self.session = requests.Session()
+        self.progress_callback = progress_callback
         self.session.headers.update({
             'User-Agent': 'LePrAn (Letterboxd Profile Analyzer) - Python Requests',
             'Accept': 'application/json',
@@ -380,6 +381,17 @@ class TMDbScraper:
                     
                     sys.stdout.write(f"\r[{bar}] {progress:.1f}% | {self.processed_count}/{total_films} films | {remaining} remaining | ETA: {eta_str}")
                     sys.stdout.flush()
+                
+                # Notify frontend of progress via callback
+                if self.progress_callback:
+                    status_msg = f"Processing films ({self.processed_count}/{total_films})"
+                    self.progress_callback(int(progress), status_msg)
+                    
+                    # Set detailed progress stats for frontend display (ETA, speed)
+                    if hasattr(self.progress_callback, '__self__'):
+                        api = self.progress_callback.__self__
+                        if hasattr(api, 'set_progress_stats'):
+                            api.set_progress_stats(self.processed_count, total_films, speed, eta_seconds)
             
             # Small delay between requests to avoid rate limiting
             if i % 10 == 9:

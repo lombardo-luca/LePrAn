@@ -283,6 +283,33 @@ body {
     transition: width 0.5s ease;
 }
 
+/* --- Progress Details --- */
+.progress-details {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.progress-detail-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.progress-detail-item span {
+    color: var(--accent-blue);
+    font-weight: 500;
+}
+
 /* --- Info Box --- */
 .info-box {
     padding: 16px 20px;

@@ -54,11 +54,23 @@
                     <!-- Progress Bar -->
                     <div class="progress-container" x-show="isAnalyzing" x-transition>
                         <div class="progress-header">
-                            <span>Processing films...</span>
                             <span x-text="analysisProgress"></span>
+                            <span x-text="progressPercent + '%'"></span>
                         </div>
                         <div class="progress-bar">
                             <div class="progress-fill" :style="'width: ' + progressPercent + '%'"></div>
+                        </div>
+                        <!-- Progress Details -->
+                        <div class="progress-details" x-show="isAnalyzing">
+                            <span class="progress-detail-item" x-show="filmsProcessed > 0 || filmsTotal > 0">
+                                🎬 <span x-text="filmsProcessed + '/' + filmsTotal + ' films'"></span>
+                            </span>
+                            <span class="progress-detail-item" x-show="processingSpeed > 0">
+                                ⚡ <span x-text="processingSpeed.toFixed(1) + ' films/s'"></span>
+                            </span>
+                            <span class="progress-detail-item" x-show="etaSeconds > 0">
+                                ⏱️ <span x-text="formatETA(etaSeconds)"></span>
+                            </span>
                         </div>
                     </div>
 
