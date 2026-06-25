@@ -88,10 +88,12 @@ body {
 }
 
 .header-logo {
-    width: 64px;
-    height: 64px;
+    width: auto;
+    height: 80px;
+    max-width: 180px;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
+    object-fit: contain;
 }
 
 .header-title {

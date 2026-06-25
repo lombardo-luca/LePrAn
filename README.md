@@ -6,21 +6,16 @@
 
 
 Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about your [Letterboxd](https://letterboxd.com) profile.  
-*Disclaimer: this project is a work-in-progress. While its main functionality should be working, some features are still missing and bugs are to be expected.*
-*This software is also compliant with Letterboxd's robots.txt, terms of service, privacy & community policies.*
+*Note: this software is being updated to version 2.0 following breaking changes on Letterboxd.*
 
 # Features
 - Shows ordered lists of most watched directors, actors, genres and more
 - Calculates the total amount of hours of film that you've watched
-- Only needs a Letterboxd username to work, no login necessary
 - Supports saving and loading data, so you don’t have to wait for scraping again
-- Comes with both GUI and CLI
 - Customizable multi-threading setting
 
 # Coming soon <sup>TM</sup>
 - More statistics
-- Plots
-- Revamped GUI
 
 # Screenshots (alpha version)
 <img src="https://i.imgur.com/RQYU61N.png">
