@@ -194,7 +194,6 @@ class GUIStringGenerator:
                 self._generate_summary_strings(films_num)
                 self._generate_language_strings(films_num)
                 self._generate_country_strings(films_num)
-                self._print_decade_stats(films_num)
                 
             logger.debug(f"Generated GUI strings for {films_num} films")
         except Exception as e:
@@ -236,19 +235,6 @@ class GUIStringGenerator:
             percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
             self.stats_data.gui_countries += k + "\t" + str(v) + "\t" + percent + "\n"
     
-    def _print_decade_stats(self, films_num: int) -> None:
-        """Print decade statistics to console."""
-        try:
-            sorted_decades = dict(sorted(self.stats_data.decade_dict.items(), key=lambda x: x[1], reverse=True))
-            if sorted_decades:
-                print("\nDecade            Films        Percentage")
-                for k, v in sorted_decades.items():
-                    percent = (format(v / films_num * 100, ".2f") + "%") if films_num else "0.00%"
-                    print(f"{k:<20}{v:>10}{percent:>15}")
-        except Exception as e:
-            logger.warning(f"Failed to generate decade statistics: {e}")
-
-
 class DataManager:
     """Coordinates data operations using specialized handler classes."""
     
