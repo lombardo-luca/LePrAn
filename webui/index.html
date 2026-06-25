@@ -27,23 +27,21 @@
                 <div class="card">
                     <h2 class="card-title">📁 Import Data</h2>
                     
-                    <!-- CSV File Selection -->
+                    <!-- Folder Selection -->
                     <div class="file-input-group">
-                        <label for="csv-file" class="file-label">Select Letterboxd Export CSV:</label>
+                        <label class="file-label">Select Letterboxd Export Folder:</label>
                         <div class="file-picker">
-                            <span class="file-name" x-text="selectedFileName || 'No file selected'"></span>
-                            <button @click="$refs.fileInput.click()" class="btn btn-secondary">Browse</button>
-                            <input type="file" x-ref="fileInput" accept=".csv" class="hidden-input" @change="handleFileSelect($event)">
+                            <span class="file-name" x-text="selectedFolderName || 'No folder selected'"></span>
+                            <button @click="selectFolderAndAnalyze()" :disabled="isAnalyzing" 
+                                    class="btn btn-primary btn-large" style="white-space: nowrap;">
+                                <span x-show="isAnalyzing" class="spinner"></span>
+                                <span x-text="isAnalyzing ? 'Analyzing...' : '📂 Select Folder & Analyze'"></span>
+                            </button>
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="button-group">
-                        <button @click="analyzeCSV()" :disabled="!selectedFile || isAnalyzing" 
-                                class="btn btn-primary btn-large">
-                            <span x-show="isAnalyzing" class="spinner"></span>
-                            <span x-text="isAnalyzing ? 'Analyzing...' : '🎯 Analyze with TMDB'"></span>
-                        </button>
                         <button @click="loadSavedCSV()" :disabled="isAnalyzing" 
                                 class="btn btn-secondary btn-large">
                             📂 Load Saved LePrAn Data
@@ -75,7 +73,8 @@
 
                     <!-- Info -->
                     <div class="info-box">
-                        <p>💡 Supports Letterboxd exported CSV files (watched.csv, diary.csv, ratings.csv, etc.)</p>
+                        <p>💡 Select a folder containing <strong>watched.csv</strong> and <strong>diary.csv</strong> from your Letterboxd data export.</p>
+                        <p>⚠️ <strong>watched.csv</strong> and <strong>diary.csv</strong> are required. Other CSV files (ratings.csv, comments.csv, etc.) are ignored.</p>
                         <p>🔒 Your data stays local. TMDB API is used only for metadata enrichment.</p>
                     </div>
                 </div>

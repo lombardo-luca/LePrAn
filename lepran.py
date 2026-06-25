@@ -21,6 +21,7 @@ sys.path.insert(0, str(project_root))
 from src.context import AppContext
 from src.scraper_tmdb import TMDbScraper
 from src.data_manager import DataManager
+from src.folder_import import FolderScraperCoordinator, ImportValidationError
 from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 
 # Configure logging
@@ -96,46 +97,52 @@ class WebAPI:
         self._films_speed = speed
         self._eta_seconds = eta_seconds
     
-    def analyze_csv_content(self, csv_content):
-        """Analyze CSV content string and return results as dict.
+    def select_folder(self):
+        """Open a folder selection dialog and return the selected path.
+        
+        Returns:
+            dict with 'folder_path' on success, or 'error' on failure.
+        """
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            
+            root = tk.Tk()
+            root.withdraw()
+            folder_path = filedialog.askdirectory(
+                title="Select Letterboxd Export Folder",
+                initialdir=os.path.abspath('.')
+            )
+            root.destroy()
+            
+            logger.info(f"select_folder: selected folder_path={folder_path}")
+            
+            if not folder_path:
+                return {'success': False, 'error': 'No folder selected'}
+            
+            return {'success': True, 'folder_path': folder_path}
+            
+        except Exception as e:
+            logger.error(f"Error selecting folder: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def analyze_folder(self, folder_path):
+        """Analyze a folder containing Letterboxd export CSV files.
+        
+        Expected folder structure:
+            folder/
+            ├── watched.csv      (REQUIRED)
+            ├── diary.csv        (REQUIRED)
+            └── watchlist.csv    (OPTIONAL)
         
         Starts analysis in a background thread and returns immediately.
         Progress can be polled via get_analysis_progress().
         When complete, the result is available via get_analysis_progress()['result'].
         """
         try:
-            # Reset data
-            self.app_context.stats_data.reset()
-            self.app_context.gui_models.clear_all()
-            
-            # Write CSV to temp file for processing
-            import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8-sig') as f:
-                f.write(csv_content)
-                temp_path = f.name
-            
-            # Parse username from content (first line or filename)
-            first_line = csv_content.strip().split('\n')[0].lower()
-            if 'date' in first_line or 'name' in first_line:
-                self.login_input = "letterboxd_export"
-            else:
-                self.login_input = "csv_analysis"
-            
-            # Check for TMDB API key
-            tmdb_token = self.app_context.config.tmdb_access_token
-            if not tmdb_token:
-                logger.warning("TMDB access token not configured, loading film count only")
-                # Count-only is fast enough to run synchronously
-                result = self._count_only_result(temp_path)
-                try:
-                    os.unlink(temp_path)
-                except OSError:
-                    pass
-                return result
-            
             # Reset progress state
             self._analysis_progress = 0
-            self._analysis_status = 'Starting analysis...'
+            self._analysis_status = 'Validating folder...'
             self._analysis_running = True
             self._analysis_result = None
             self._analysis_error = None
@@ -146,18 +153,17 @@ class WebAPI:
             
             def run_analysis():
                 try:
-                    scraper_with_callback.scrape_csv_file(temp_path)
+                    coordinator = FolderScraperCoordinator(scraper_with_callback, self.app_context)
+                    coordinator.scrape_folder(folder_path, progress_callback=self._update_progress)
                     self.data_manager.generate_gui_strings(self.app_context.stats_data.films_count)
                     self._analysis_result = self._build_result()
+                except ImportValidationError as e:
+                    logger.error(f"Folder validation error: {e}")
+                    self._analysis_error = str(e)
                 except Exception as e:
-                    logger.error(f"Error analyzing CSV: {e}")
+                    logger.error(f"Error analyzing folder: {e}")
                     self._analysis_error = str(e)
                 finally:
-                    # Clean up temp file
-                    try:
-                        os.unlink(temp_path)
-                    except OSError:
-                        pass
                     self._analysis_running = False
                     self._analysis_complete.set()
             
@@ -169,7 +175,7 @@ class WebAPI:
             return {'status': 'started', 'message': 'Analysis started'}
                 
         except Exception as e:
-            logger.error(f"Error analyzing CSV: {e}")
+            logger.error(f"Error analyzing folder: {e}")
             self._analysis_running = False
             self._analysis_complete.set()
             return {'success': False, 'error': str(e)}
@@ -205,11 +211,20 @@ class WebAPI:
                 response['error'] = self._analysis_error
         return response
     
-    def _count_only_result(self, csv_path):
+    def _count_only_result(self, folder_path):
         """Return result with film count only (no TMDB analysis)."""
-        films = self.scraper.parse_csv_file(csv_path)
-        unique_films = set(name.lower().strip() for name, year in films)
-        films_count = len(unique_films)
+        try:
+            from src.folder_import import FolderDataLoader
+            loader = FolderDataLoader()
+            folder_data = loader.load_folder(folder_path)
+            parser = loader.parser
+            watched_films = parser.extract_unique_films(folder_data['watched'])
+            diary_films = parser.extract_unique_films(folder_data['diary'])
+            unique_watched = set(name.lower().strip() for name, year in watched_films)
+            unique_diary = set(name.lower().strip() for name, year in diary_films)
+            films_count = len(unique_watched) + len(unique_diary)
+        except Exception:
+            films_count = 0
         
         scraped_when = __import__('time').strftime("%d/%m/%Y", __import__('time').localtime())
         self.app_context.stats_data.set_meta_data(films_count, 0.0, 0.0, scraped_when)

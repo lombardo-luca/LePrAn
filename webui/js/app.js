@@ -6,10 +6,10 @@
 function lepranApp() {
     return {
          // State
-         logoPath: 'assets/logo.png',
-         selectedFile: null,
-         selectedFileName: '',
-         isAnalyzing: false,
+          logoPath: 'assets/logo.png',
+          selectedFolder: null,
+          selectedFolderName: '',
+          isAnalyzing: false,
          progressPercent: 0,
          analysisProgress: 'Starting...',
          hasResults: false,
@@ -227,62 +227,52 @@ function lepranApp() {
             return `Switch to ${icon} ${targetType.charAt(0).toUpperCase() + targetType.slice(1)} chart`;
         },
         
-        // Handle file selection from input
-        handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                this.selectedFile = file;
-                this.selectedFileName = file.name;
-                console.log('Selected file:', file.name);
-            }
+        // Handle folder selection via hidden file input
+        handleFolderSelect(event) {
+            // The hidden file input is used to trigger folder selection via pywebview
+            // This handler is kept for compatibility but folder selection is done via the button
+            console.log('Folder selection handled via pywebview API');
         },
         
-        // Analyze selected CSV with TMDB
-        async analyzeCSV() {
-            if (!this.selectedFile) {
-                alert('Please select a CSV file first.');
-                return;
-            }
-            
+        // Start folder selection via pywebview API
+        async selectFolderAndAnalyze() {
             this.isAnalyzing = true;
             this.progressPercent = 0;
-            this.analysisProgress = 'Starting analysis...';
+            this.analysisProgress = 'Selecting folder...';
             this.hasResults = false;
             
             try {
-                // Read the file as text and send to Python backend
-                const reader = new FileReader();
-                
-                reader.onload = (e) => {
-                    const csvContent = e.target.result;
+                if (window.pywebview && window.pywebview.api) {
+                    // Open folder selection dialog in Python
+                    const folderResult = await window.pywebview.api.select_folder();
                     
-                    if (window.pywebview && window.pywebview.api) {
-                        // Start analysis (returns immediately)
-                        window.pywebview.api.analyze_csv_content(csvContent).then((result) => {
-                            if (result.status === 'started') {
-                                // Start polling for progress
-                                this._startProgressPolling();
-                            } else if (result.success) {
-                                // Count-only result returned directly
-                                this.onAnalysisComplete(result);
-                            }
-                        }).catch((err) => {
-                            this.onAnalysisError(err);
-                        });
-                    } else {
-                        // Demo mode - simulate analysis
-                        this.simulateAnalysis();
+                    if (!folderResult.success) {
+                        this.onAnalysisError(folderResult.error || 'Failed to select folder');
+                        return;
                     }
-                };
-                
-                reader.onerror = () => {
-                    this.onAnalysisError('Failed to read file');
-                };
-                
-                reader.readAsText(this.selectedFile);
-                
+                    
+                    const folderPath = folderResult.folder_path;
+                    this.selectedFolderName = folderPath.split(/[\\/]/).pop();
+                    this.analysisProgress = 'Validating folder...';
+                    
+                    // Start analysis with the selected folder
+                    window.pywebview.api.analyze_folder(folderPath).then((result) => {
+                        if (result.status === 'started') {
+                            // Start polling for progress
+                            this._startProgressPolling();
+                        } else if (result.success) {
+                            // Count-only result returned directly
+                            this.onAnalysisComplete(result);
+                        }
+                    }).catch((err) => {
+                        this.onAnalysisError(err);
+                    });
+                } else {
+                    // Demo mode - simulate analysis
+                    this.simulateAnalysis();
+                }
             } catch (error) {
-                this.onAnalysisError(error.message || 'Unknown error');
+                this.onAnalysisError(error.message || 'Failed to select folder');
             }
         },
         
@@ -500,8 +490,8 @@ function lepranApp() {
             }
             
             this.hasResults = false;
-            this.selectedFile = null;
-            this.selectedFileName = '';
+            this.selectedFolder = null;
+            this.selectedFolderName = '';
             this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
             
