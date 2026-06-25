@@ -17,9 +17,41 @@ class Config:
     def __init__(self):
         self.max_threads = 20
         self.list_delim = 200
-        self.scraper_profile = "async"  # Use "legacy", "optimized", or "async"
+        self.scraper_profile = "async"  # Use "legacy", "optimized", "async", or "tmdb"
+        self.tmdb_access_token = ""
         self.config_path = self.get_resource_path('cfg/config.txt')
+        self._load_env()
         self.load_config()
+    
+    def _load_env(self):
+        """Load TMDB API key / access token from .env file.
+        
+        Prefers TMDB_API_KEY (API key) over TMDB_ACCESS_TOKEN (OAuth token),
+        since the TMDB v3 API requires an API key, not an OAuth access token.
+        """
+        env_paths = [
+            os.path.join(self.get_resource_path('.'), '..', '.env'),
+            os.path.join(os.getcwd(), '.env'),
+        ]
+        for env_path in env_paths:
+            env_path = os.path.normpath(env_path)
+            if os.path.exists(env_path):
+                try:
+                    with open(env_path, 'r') as f:
+                        for line in f:
+                            line = line.strip()
+                            # Prefer TMDB_API_KEY (API key) over TMDB_ACCESS_TOKEN (OAuth token)
+                            if line.startswith('TMDB_API_KEY='):
+                                self.tmdb_access_token = line.split('=', 1)[1].strip()
+                                logger.info("TMDB API key loaded from .env")
+                                return
+                            elif line.startswith('TMDB_ACCESS_TOKEN=') and not self.tmdb_access_token:
+                                # Fallback to TMDB_ACCESS_TOKEN if TMDB_API_KEY is not set
+                                self.tmdb_access_token = line.split('=', 1)[1].strip()
+                                logger.info("TMDB access token (fallback) loaded from .env")
+                except IOError as e:
+                    logger.warning(f"Error reading .env file: {e}")
+                    continue
     
     def get_resource_path(self, relative_path):
         """Get the absolute path to a resource file."""
@@ -41,7 +73,7 @@ class Config:
                             if key == 'workerThreadsNumber':
                                 self.max_threads = int(value)
                             elif key == 'scraperProfile':
-                                if value.lower() in ['legacy', 'optimized', 'async']:
+                                if value.lower() in ['legacy', 'optimized', 'async', 'tmdb']:
                                     self.scraper_profile = value.lower()
                 logger.info("Config file loaded.")
                 logger.debug(f"Config loaded: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")

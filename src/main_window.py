@@ -2,6 +2,7 @@
 Main window GUI logic.
 Handles the main application window and user interactions.
 """
+import csv
 import os
 import time
 import logging
@@ -15,6 +16,7 @@ from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 from .scraper_optimized import LetterboxdScraper
 from .scraper_legacy import LegacyLetterboxdScraper
 from .scraper_async import AsyncLetterboxdScraper
+from .scraper_tmdb import TMDbScraper
 from .data_manager import DataManager
 
 
@@ -36,11 +38,28 @@ class LoginThread(QThread):
             self.scraper = LegacyLetterboxdScraper(app_context)
         elif app_context.config.scraper_profile == "async":
             self.scraper = AsyncLetterboxdScraper(app_context)
+        elif app_context.config.scraper_profile == "tmdb":
+            self.scraper = TMDbScraper(app_context)
         else:  # Default to optimized scraper
             self.scraper = LetterboxdScraper(app_context)
 
     def run(self):
         self.scraper.scrape_user_profile(self.login)
+        self.doneSignal.emit()
+
+
+class TMDBAnalysisThread(QThread):
+    """Thread for running the TMDB API analysis process."""
+    doneSignal = pyqtSignal()
+
+    def __init__(self, csv_path: str, app_context):
+        super().__init__()
+        self.csv_path = csv_path
+        self.app_context = app_context
+        self.scraper = TMDbScraper(app_context)
+
+    def run(self):
+        self.scraper.scrape_csv_file(self.csv_path)
         self.doneSignal.emit()
 
 
@@ -74,12 +93,25 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         self.loginInput = None
         self.lineEdit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        
+        # Check if TMDB scraper is configured - adjust UI accordingly
+        self.use_tmdb_scraper = (self.app_context.config.scraper_profile == "tmdb")
+        
+        if self.use_tmdb_scraper:
+            # Show CSV file picker label/button instead of username input
+            self.label_3.setText("Select Letterboxd export CSV:")
+            self.lineEdit.setVisible(False)
+            self.pushButton.setText("Analyze with TMDB")
+        else:
+            self.label_3.setText("Insert your Letterboxd username:")
+            self.pushButton.setText("Analyze")
+        
         self.pushButton.clicked.connect(self.analyze)
         # Wire Load button to open-file CSV loader
         self.pushButton_2.clicked.connect(self.load_from_csv)
 
     def analyze(self):
-        """Start analyzing a user's Letterboxd profile."""
+        """Start analyzing based on the configured scraper type."""
         # Reset data for new search
         self.app_context.stats_data.reset()
         self.app_context.gui_models.clear_all()
@@ -92,13 +124,40 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.pushButton_save.setEnabled(True)
             self.ui.pushButton_save.setText("Save results")
         
-        self.loginInput = self.lineEdit.text()
-        logger.info(f"Starting analysis for user: {self.loginInput}")
+        if self.use_tmdb_scraper:
+            # Open file dialog to select CSV
+            csv_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Letterboxd Export CSV",
+                os.path.abspath('.'),
+                "CSV Files (*.csv)"
+            )
+            
+            if not csv_path:
+                self.pushButton.setEnabled(True)
+                self.pushButton.setText("Analyze with TMDB")
+                return
+            
+            # Set username from filename
+            try:
+                self.loginInput = os.path.splitext(os.path.basename(csv_path))[0]
+            except (OSError, ValueError):
+                self.loginInput = "tmdb_analysis"
+            
+            logger.info(f"Starting TMDB analysis for CSV: {csv_path}")
 
-        # Run login function inside of a thread
-        self.thread = LoginThread(self.loginInput, self.app_context)
-        self.thread.doneSignal.connect(self.loginComplete)
-        self.thread.start()
+            # Run TMDB analysis in a thread
+            self.thread = TMDBAnalysisThread(csv_path, self.app_context)
+            self.thread.doneSignal.connect(self.loginComplete)
+            self.thread.start()
+        else:
+            self.loginInput = self.lineEdit.text()
+            logger.info(f"Starting analysis for user: {self.loginInput}")
+
+            # Run login function inside of a thread
+            self.thread = LoginThread(self.loginInput, self.app_context)
+            self.thread.doneSignal.connect(self.loginComplete)
+            self.thread.start()
 
     def open_settings_dialog(self):
         """Open the settings dialog."""
@@ -109,12 +168,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Set comboBox to match config.scraper_profile
         profile = self.app_context.config.scraper_profile
-        if profile == "async":
+        if profile == "tmdb":
             self.settings.comboBox.setCurrentIndex(0)
-        elif profile == "optimized":
+        elif profile == "async":
             self.settings.comboBox.setCurrentIndex(1)
-        elif profile == "legacy":
+        elif profile == "optimized":
             self.settings.comboBox.setCurrentIndex(2)
+        elif profile == "legacy":
+            self.settings.comboBox.setCurrentIndex(3)
         else:
             self.settings.comboBox.setCurrentIndex(0)
 
@@ -125,13 +186,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             # Save scraper_profile from comboBox
             idx = self.settings.comboBox.currentIndex()
             if idx == 0:
-                self.app_context.config.scraper_profile = "async"
+                self.app_context.config.scraper_profile = "tmdb"
             elif idx == 1:
-                self.app_context.config.scraper_profile = "optimized"
+                self.app_context.config.scraper_profile = "async"
             elif idx == 2:
+                self.app_context.config.scraper_profile = "optimized"
+            elif idx == 3:
                 self.app_context.config.scraper_profile = "legacy"
             else:
-                self.app_context.config.scraper_profile = "async"
+                self.app_context.config.scraper_profile = "tmdb"
             self.app_context.config.save_config()
             logger.info(f"Settings saved - max_threads: {self.app_context.config.max_threads}, scraper_profile: {self.app_context.config.scraper_profile}")
 
@@ -142,7 +205,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def loginComplete(self):
         """Handle completion of login/scraping process."""
         # Re-enable the Analyze button for new searches
-        self.pushButton.setText("Analyze")
+        if self.use_tmdb_scraper:
+            self.pushButton.setText("Analyze with TMDB")
+        else:
+            self.pushButton.setText("Analyze")
         self.pushButton.setEnabled(True)
         
         # Generate GUI strings
@@ -200,12 +266,32 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.header5.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.header5.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
+    def _is_lepran_format(self, csv_path: str) -> bool:
+        """Check if CSV file is in LePrAn saved format (has META section) vs Letterboxd export."""
+        try:
+            with open(csv_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 1 and row[0].strip().upper() == 'META':
+                        return True
+                    if len(row) >= 1 and row[0].strip().lower() in ('date', 'name', 'title', 'film'):
+                        return False
+                return False
+        except Exception as e:
+            logger.warning(f"Could not detect CSV format, assuming LePrAn format: {e}")
+            return False
+
     def load_from_csv(self):
-        """Load statistics from a CSV file."""
+        """Load statistics from a CSV file.
+        
+        Supports two formats:
+        1. LePrAn saved CSV (with META/LANGUAGE/COUNTRY sections) - loaded directly into GUI
+        2. Letterboxd export CSV (Date,Name,Year,URI) - processed through TMDB scraper for full analysis
+        """
         # Open file dialog restricted to CSV files
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open statistics CSV",
+            "Open Letterboxd/LePrAn CSV",
             os.path.abspath('.'),
             "CSV Files (*.csv)"
         )
@@ -217,19 +303,86 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.pushButton_save.setEnabled(True)
             self.ui.pushButton_save.setText("Save results")
         
-        meta = self.data_manager.load_stats_from_csv(file_path)
-        # Set username label from CSV contents if present; fallback to filename
-        loaded_user = (meta or {}).get('username') if isinstance(meta, dict) else ''
-        if loaded_user:
-            self.loginInput = loaded_user
-        else:
-            try:
-                self.loginInput = os.path.splitext(os.path.basename(file_path))[0]
-            except (OSError, ValueError) as e:
-                logger.warning(f"Could not extract username from filename: {e}")
-                self.loginInput = "(loaded)"
+        # Detect CSV format and route accordingly
+        is_lepran_format = self._is_lepran_format(file_path)
         
-        # Show results dialog using existing setup
+        if is_lepran_format:
+            # LePrAn saved format - load directly without TMDB API
+            logger.info(f"Detected LePrAn saved CSV format: {file_path}")
+            meta = self.data_manager.load_stats_from_csv(file_path)
+            
+            # Extract username from LoadedStats object
+            if hasattr(meta, 'username') and meta.username:
+                self.loginInput = meta.username
+            else:
+                try:
+                    self.loginInput = os.path.splitext(os.path.basename(file_path))[0]
+                except (OSError, ValueError):
+                    self.loginInput = "(loaded)"
+        else:
+            # Letterboxd export format - process through TMDB scraper
+            logger.info(f"Detected Letterboxd export CSV format: {file_path}")
+            
+            # Check for TMDB API key
+            tmdb_token = self.app_context.config.tmdb_access_token
+            if not tmdb_token:
+                logger.warning("TMDB access token not configured, loading film count only")
+                # Fallback: just count films without TMDB analysis
+                self._load_letterboxd_csv_count_only(file_path)
+                return
+            
+            # Run TMDB analysis in a thread
+            self.pushButton.setEnabled(False)
+            self.pushButton.setText("Analyzing with TMDB...")
+            
+            self.thread = TMDBAnalysisThread(file_path, self.app_context)
+            self.thread.doneSignal.connect(self._tmdbLoadComplete)
+            self.thread.start()
+
+    def _load_letterboxd_csv_count_only(self, csv_path: str):
+        """Load Letterboxd CSV and count films without TMDB API (fallback mode)."""
+        scraper = TMDbScraper(self.app_context)
+        films = scraper.parse_csv_file(csv_path)
+        
+        if not films:
+            self.loginInput = "(no films found)"
+            logger.warning(f"No films found in Letterboxd CSV: {csv_path}")
+            # Still show the dialog
+            self.loginComplete()
+            return
+        
+        # Count unique films (some exports may have duplicates)
+        unique_films = set(name.lower().strip() for name, year in films)
+        films_count = len(unique_films)
+        
+        logger.info(f"Loaded {films_count} unique films from Letterboxd CSV (count-only mode)")
+        
+        # Set basic stats without TMDB metadata
+        scraped_when = time.strftime("%d/%m/%Y", time.localtime())
+        self.app_context.stats_data.set_meta_data(films_count, 0.0, 0.0, scraped_when)
+        
+        try:
+            self.loginInput = os.path.splitext(os.path.basename(csv_path))[0]
+        except (OSError, ValueError):
+            self.loginInput = "letterboxd_export"
+        
+        # Show results dialog
+        self.loginComplete()
+
+    def _tmdbLoadComplete(self):
+        """Handle completion of TMDB analysis from CSV load."""
+        self.pushButton.setEnabled(True)
+        self.pushButton.setText("Analyze")
+        
+        # Extract username from filename
+        try:
+            self.loginInput = os.path.splitext(os.path.basename(
+                getattr(self.thread, 'csv_path', '')
+            ))[0]
+        except (OSError, ValueError):
+            self.loginInput = "tmdb_analysis"
+        
+        # Show results dialog
         self.loginComplete()
 
     def save_results(self):
