@@ -182,8 +182,9 @@ class TMDbScraper:
                 film_data['countries'].append(c)
         
         # Spoken languages
+        # Use english_name from TMDB to ensure consistent English display across the entire UI
         for lang in movie_data.get('spoken_languages', []):
-            l = lang.get('name', '').strip()
+            l = lang.get('english_name', lang.get('name', '')).strip()
             if l and l != "":
                 film_data['languages'].append(l)
         
