@@ -49,14 +49,26 @@ function lepranApp() {
          directorsExpanded: false,
          actorsExpanded: false,
          
-         // Raw category data from backend
-         rawData: {
-             countries: [],
-             languages: [],
-             genres: [],
-             directors: [],
-             actors: []
-         },
+          // Raw category data from backend
+          rawData: {
+              countries: [],
+              languages: [],
+              genres: [],
+              directors: [],
+              actors: []
+          },
+          
+          // Chart type preferences per category ('bar' or 'pie')
+          chartTypes: {
+              countries: 'bar',
+              languages: 'bar',
+              genres: 'bar',
+              directors: 'bar',
+              actors: 'bar'
+          },
+          
+          // Pie chart slice limit (top N slices, rest grouped as "Other")
+          pieSliceLimit: 7,
          
          // Computed sorted data (for display)
          // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
@@ -89,12 +101,123 @@ function lepranApp() {
             // Store reference for global callback
             this._appRef = this;
             
+            // Load saved chart type preferences from localStorage
+            this.loadChartTypePreferences();
+            
             // Check if we're running in pywebview
             if (window.pywebview) {
                 console.log('pywebview API detected');
             } else {
                 console.warn('Running without pywebview bridge - using demo mode');
             }
+        },
+        
+        // Load chart type preferences from localStorage
+        loadChartTypePreferences() {
+            try {
+                const saved = localStorage.getItem('lepran_chartTypes');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Merge with defaults to handle new categories
+                    this.chartTypes = { ...this.chartTypes, ...parsed };
+                }
+            } catch (e) {
+                console.warn('Failed to load chart type preferences:', e);
+            }
+        },
+        
+        // Save chart type preferences to localStorage
+        saveChartTypePreferences() {
+            try {
+                localStorage.setItem('lepran_chartTypes', JSON.stringify(this.chartTypes));
+            } catch (e) {
+                console.warn('Failed to save chart type preferences:', e);
+            }
+        },
+        
+        // Toggle chart type for a given category (only recreates that specific chart)
+        toggleChartType(category) {
+            if (this.chartTypes[category] === 'bar') {
+                this.chartTypes[category] = 'pie';
+            } else {
+                this.chartTypes[category] = 'bar';
+            }
+            this.saveChartTypePreferences();
+            // Only recreate the specific chart for this category
+            this.$nextTick(() => {
+                this.recreateChartForCategory(category);
+            });
+        },
+        
+        // Recreate only the chart for a specific category
+        recreateChartForCategory(category) {
+            const categoryToChartId = {
+                countries: 'countriesChart',
+                languages: 'languagesChart',
+                genres: 'genresChart',
+                directors: 'directorsChart',
+                actors: 'actorsChart'
+            };
+            const chartId = categoryToChartId[category];
+            if (!chartId) return;
+            
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            // Destroy only this specific chart using Chart.js registry
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            // Clear our internal reference (don't call destroy again - already done above)
+            delete this.charts[chartId];
+            
+            // Small delay to ensure Chart.js fully releases the canvas
+            setTimeout(() => {
+                this._doCreateChart(category, chartId, canvas);
+            }, 50);
+        },
+        
+        // Internal method to actually create the chart (called after delay)
+        _doCreateChart(category, chartId, canvas) {
+            // Double-check: destroy any chart that might have been created in the meantime
+            const stillExisting = Chart.getChart(canvas);
+            if (stillExisting) {
+                stillExisting.destroy();
+            }
+            delete this.charts[chartId];
+            
+            // Data and color mappings
+            const dataMap = {
+                countries: this.rawData.countries,
+                languages: this.rawData.languages,
+                genres: this.rawData.genres,
+                directors: this.rawData.directors,
+                actors: this.rawData.actors
+            };
+            const colorMap = {
+                countries: '#58a6ff',
+                languages: '#3fb950',
+                genres: '#bc8cff',
+                directors: '#d29922',
+                actors: '#f85149'
+            };
+            
+            this._createChart({
+                id: chartId,
+                data: dataMap[category],
+                color: colorMap[category],
+                category: category
+            });
+        },
+        
+        // Get display label for current chart type (shows what to switch TO)
+        getChartTypeLabel(category) {
+            const currentType = this.chartTypes[category] || 'bar';
+            const targetType = currentType === 'bar' ? 'pie' : 'bar';
+            const icon = targetType === 'pie' ? '🥧' : '📊';
+            return `Switch to ${icon} ${targetType.charAt(0).toUpperCase() + targetType.slice(1)} chart`;
         },
         
         // Handle file selection from input
@@ -406,39 +529,188 @@ function lepranApp() {
             }
         },
         
+        // Prepare chart data based on type (bar or pie)
+        prepareChartData(data, chartType, limit) {
+            const sorted = [...data].sort((a, b) => b.count - a.count);
+            
+            if (chartType === 'pie' && sorted.length > limit) {
+                // For pie charts: top N slices + "Other" for the rest
+                const topItems = sorted.slice(0, limit);
+                const otherCount = sorted.slice(limit).reduce((sum, item) => sum + item.count, 0);
+                
+                return {
+                    labels: [...topItems.map(item => item.name), 'Other'],
+                    counts: [...topItems.map(item => item.count), otherCount]
+                };
+            } else {
+                // For bar charts: top 10 items (no "Other" grouping)
+                const items = sorted.slice(0, limit);
+                return {
+                    labels: items.map(item => item.name),
+                    counts: items.map(item => item.count)
+                };
+            }
+        },
+        
+        // Convert HSL to Hex color string
+        hslToHex(h, s, l) {
+            l /= 100;
+            const a = s * Math.min(l, 1 - l) / 100;
+            const f = n => {
+                const run = n + (h / 30) % 12;
+                const color = l - a * Math.max(Math.min(run - 3, 9 - run, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        },
+        
+        // Generate highly distinct colors for pie chart slices
+        // Uses a predefined palette of well-separated colors for maximum visual contrast
+        generatePieColors(baseColor, count) {
+            // Predefined palette of highly distinct colors (hex without #)
+            // These are spaced to ensure adjacent slices are visually different
+            const distinctColors = [
+                { bg: '#FF6B6B', border: '#FF5252' },  // Red
+                { bg: '#4ECDC4', border: '#26A69A' },  // Teal
+                { bg: '#45B7D1', border: '#2196F3' },  // Blue
+                { bg: '#FFA726', border: '#FB8C00' },  // Orange
+                { bg: '#AB47BC', border: '#8E24AA' },  // Purple
+                { bg: '#66BB6A', border: '#43A047' },  // Green
+                { bg: '#EC407A', border: '#D81B60' },  // Pink
+                { bg: '#26C6DA', border: '#00ACC1' },  // Cyan
+                { bg: '#FFEE58', border: '#FFC107' },  // Yellow
+                { bg: '#8D6E63', border: '#6D4C41' },  // Brown
+                { bg: '#7E57C2', border: '#5E35B1' },  // Indigo
+                { bg: '#EF5350', border: '#E53935' },  // Coral
+                { bg: '#29B6F6', border: '#039BE5' },  // Light Blue
+                { bg: '#9CCC65', border: '#7CB342' },  // Lime
+                { bg: '#FF7043', border: '#F4511E' },  // Deep Orange
+                { bg: '#26A69A', border: '#00897B' },  // Green Teal
+                { bg: '#FDD835', border: '#F9A825' },  // Gold
+                { bg: '#5C6BC0', border: '#3949AB' },  // Blue Indigo
+                { bg: '#C0CA33', border: '#9E9D24' },  // Lime Green
+                { bg: '#EF5350', border: '#AD1457' },  // Crimson
+            ];
+            
+            const backgrounds = [];
+            const borders = [];
+            
+            for (let i = 0; i < count; i++) {
+                if (i < distinctColors.length) {
+                    backgrounds.push(distinctColors[i].bg + 'cc'); // ~80% opacity
+                    borders.push(distinctColors[i].border);
+                } else {
+                    // If we need more colors than our palette, generate from base
+                    const r = parseInt(baseColor.slice(1, 3), 16) / 255;
+                    const g = parseInt(baseColor.slice(3, 5), 16) / 255;
+                    const b = parseInt(baseColor.slice(5, 7), 16) / 255;
+                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                    let h, s, l = (max + min) / 2;
+                    if (max === min) {
+                        h = s = 0;
+                    } else {
+                        const d = max - min;
+                        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                        switch (max) {
+                            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                            case g: h = ((b - r) / d + 2) / 6; break;
+                            case b: h = ((r - g) / d + 4) / 6; break;
+                        }
+                    }
+                    // Use larger hue step for more separation
+                    const hueStep = 137; // Golden angle approximation for better distribution
+                    const hue = Math.round((h * 360 + hueStep * i) % 360);
+                    const sat = 70 + (i % 3) * 10; // Vary saturation
+                    const lit = 50 + (i % 2) * 15; // Vary lightness
+                    const hex = this.hslToHex(hue, sat, lit);
+                    backgrounds.push(hex + 'cc');
+                    borders.push(this.hslToHex(hue, sat, lit - 10));
+                }
+            }
+            
+            return { backgrounds, borders };
+        },
+        
         // Initialize Chart.js charts for all panels
         initCharts() {
             this.destroyCharts();
             
             const chartConfigs = [
-                { id: 'countriesChart', data: this.rawData.countries, color: '#58a6ff' },
-                { id: 'languagesChart', data: this.rawData.languages, color: '#3fb950' },
-                { id: 'genresChart', data: this.rawData.genres, color: '#bc8cff' },
-                { id: 'directorsChart', data: this.rawData.directors, color: '#d29922' },
-                { id: 'actorsChart', data: this.rawData.actors, color: '#f85149' }
+                { id: 'countriesChart', data: this.rawData.countries, color: '#58a6ff', category: 'countries' },
+                { id: 'languagesChart', data: this.rawData.languages, color: '#3fb950', category: 'languages' },
+                { id: 'genresChart', data: this.rawData.genres, color: '#bc8cff', category: 'genres' },
+                { id: 'directorsChart', data: this.rawData.directors, color: '#d29922', category: 'directors' },
+                { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' }
             ];
             
             chartConfigs.forEach(config => {
-                const canvas = document.getElementById(config.id);
-                if (!canvas || !config.data.length) return;
-                
-                // Sort by count descending and get top 10 items for chart readability
-                const topItems = [...config.data].sort((a, b) => b.count - a.count).slice(0, 10);
-                
-                this.charts[config.id] = new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels: topItems.map(item => item.name),
-                        datasets: [{
-                            label: 'Films',
-                            data: topItems.map(item => item.count),
-                            backgroundColor: config.color + '99',
-                            borderColor: config.color,
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
+                this._createChart(config);
+            });
+        },
+        
+        // Create a single chart with proper error handling
+        _createChart(config) {
+            const canvas = document.getElementById(config.id);
+            if (!canvas || !config.data.length) return;
+            
+            // Safety check: destroy any existing Chart.js instance attached to this canvas
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            const chartType = this.chartTypes[config.category] || 'bar';
+            const barLimit = 10;
+            const pieLimit = this.pieSliceLimit;
+            const chartData = this.prepareChartData(config.data, chartType, chartType === 'pie' ? pieLimit : barLimit);
+            
+            let chartInstance;
+            
+            try {
+                if (chartType === 'pie') {
+                    const pieColors = this.generatePieColors(config.color, chartData.labels.length);
+                    
+                    const chartOptions = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#8b949e',
+                                    font: { size: 10 },
+                                    padding: 8,
+                                    boxWidth: 12
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#21262d',
+                                titleColor: '#e6edf3',
+                                bodyColor: '#8b949e',
+                                borderColor: '#30363d',
+                                borderWidth: 1,
+                                padding: 10,
+                                displayColors: true
+                            }
+                        }
+                    };
+                    
+                    chartInstance = new Chart(canvas, {
+                        type: 'pie',
+                        data: {
+                            labels: chartData.labels,
+                            datasets: [{
+                                label: 'Films',
+                                data: chartData.counts,
+                                backgroundColor: pieColors.backgrounds,
+                                borderColor: pieColors.borders,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                } else {
+                    const chartOptions = {
                         responsive: true,
                         maintainAspectRatio: false,
                         indexAxis: 'y',
@@ -478,19 +750,47 @@ function lepranApp() {
                                 }
                             }
                         }
-                    }
-                });
-            });
+                    };
+                    
+                    chartInstance = new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.labels,
+                            datasets: [{
+                                label: 'Films',
+                                data: chartData.counts,
+                                backgroundColor: config.color + '99',
+                                borderColor: config.color,
+                                borderWidth: 1,
+                                borderRadius: 4
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                }
+                
+                // Store the chart instance only if creation succeeded
+                if (chartInstance && !chartInstance.destroyed) {
+                    this.charts[config.id] = chartInstance;
+                }
+            } catch (error) {
+                console.error(`Failed to create chart ${config.id}:`, error);
+            }
         },
         
         // Destroy all chart instances
         destroyCharts() {
             for (const id in this.charts) {
-                if (this.charts[id]) {
-                    this.charts[id].destroy();
-                    this.charts[id] = null;
+                try {
+                    if (this.charts[id] && !this.charts[id].destroyed) {
+                        this.charts[id].destroy();
+                    }
+                } catch (e) {
+                    console.warn(`Error destroying chart ${id}:`, e);
                 }
             }
+            // Clear all chart references
+            this.charts = {};
         },
         
         // Demo mode: simulate analysis with sample data

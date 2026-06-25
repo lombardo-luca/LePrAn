@@ -597,6 +597,24 @@ body {
     position: relative;
 }
 
+/* --- Chart Type Toggle --- */
+.chart-type-toggle {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0 8px;
+}
+
+.chart-type-btn {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    user-select: none;
+}
+
+.chart-type-btn:hover {
+    background: rgba(88, 166, 255, 0.2);
+    box-shadow: 0 0 6px rgba(88, 166, 255, 0.2);
+}
+
 /* --- Actors Toggle Button --- */
 .actors-toggle-container {
     display: flex;

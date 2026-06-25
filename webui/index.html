@@ -155,6 +155,10 @@
                                         Showing top 100 of <span x-text="rawData.countries.length"></span> countries
                                     </span>
                                 </div>
+                                <!-- Chart Type Toggle -->
+                                <div class="chart-type-toggle">
+                                    <button @click="toggleChartType('countries')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('countries')"></button>
+                                </div>
                                 <div class="chart-container">
                                     <canvas id="countriesChart"></canvas>
                                 </div>
@@ -187,6 +191,10 @@
                                         Showing top 100 of <span x-text="rawData.languages.length"></span> languages
                                     </span>
                                 </div>
+                                <!-- Chart Type Toggle -->
+                                <div class="chart-type-toggle">
+                                    <button @click="toggleChartType('languages')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('languages')"></button>
+                                </div>
                                 <div class="chart-container">
                                     <canvas id="languagesChart"></canvas>
                                 </div>
@@ -218,6 +226,10 @@
                                     <span class="category-count-info" x-show="!genresExpanded && rawData.genres.length > 100">
                                         Showing top 100 of <span x-text="rawData.genres.length"></span> genres
                                     </span>
+                                </div>
+                                <!-- Chart Type Toggle -->
+                                <div class="chart-type-toggle">
+                                    <button @click="toggleChartType('genres')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('genres')"></button>
                                 </div>
                                 <div class="chart-container">
                                     <canvas id="genresChart"></canvas>
