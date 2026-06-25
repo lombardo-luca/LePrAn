@@ -39,9 +39,15 @@ function lepranApp() {
          leftPanel: 'countries',
          rightPanel: 'actors',
          
-         // Actors display control
+         // Display limit for all categories
+         DISPLAY_LIMIT: 100,
+         
+         // Category expansion states (each category can be expanded to show all entries)
+         countriesExpanded: false,
+         languagesExpanded: false,
+         genresExpanded: false,
+         directorsExpanded: false,
          actorsExpanded: false,
-         ACTORS_DISPLAY_LIMIT: 100,
          
          // Raw category data from backend
          rawData: {
@@ -53,15 +59,22 @@ function lepranApp() {
          },
          
          // Computed sorted data (for display)
-         // Actors are limited to top 100 unless actorsExpanded is true
+         // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
          get sortedData() {
              const result = {};
+             const expansionStates = {
+                 countries: this.countriesExpanded,
+                 languages: this.languagesExpanded,
+                 genres: this.genresExpanded,
+                 directors: this.directorsExpanded,
+                 actors: this.actorsExpanded
+             };
              for (const key of Object.keys(this.rawData)) {
                  let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
                  
-                 // Limit actors to top 100 unless expanded
-                 if (key === 'actors' && !this.actorsExpanded) {
-                     sorted = sorted.slice(0, this.ACTORS_DISPLAY_LIMIT);
+                 // Limit to top 100 unless that category is expanded
+                 if (!expansionStates[key]) {
+                     sorted = sorted.slice(0, this.DISPLAY_LIMIT);
                  }
                  
                  result[key] = sorted;
@@ -322,7 +335,23 @@ function lepranApp() {
             return remM > 0 ? `${h}h${remM}m` : `${h}h`;
         },
         
-        // Toggle actors list expansion
+        // Toggle category expansion methods
+        toggleCountries() {
+            this.countriesExpanded = !this.countriesExpanded;
+        },
+        
+        toggleLanguages() {
+            this.languagesExpanded = !this.languagesExpanded;
+        },
+        
+        toggleGenres() {
+            this.genresExpanded = !this.genresExpanded;
+        },
+        
+        toggleDirectors() {
+            this.directorsExpanded = !this.directorsExpanded;
+        },
+        
         toggleActors() {
             this.actorsExpanded = !this.actorsExpanded;
         },

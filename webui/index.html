@@ -144,6 +144,16 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                <!-- Show All/Less Toggle -->
+                                <div class="category-toggle-container" x-show="rawData.countries.length > 100">
+                                    <button @click="toggleCountries()" class="btn btn-small btn-outline category-toggle-btn">
+                                        <span x-show="!countriesExpanded">Show All</span>
+                                        <span x-show="countriesExpanded">Show Less</span>
+                                    </button>
+                                    <span class="category-count-info" x-show="!countriesExpanded && rawData.countries.length > 100">
+                                        Showing top 100 of <span x-text="rawData.countries.length"></span> countries
+                                    </span>
+                                </div>
                                 <div class="chart-container">
                                     <canvas id="countriesChart"></canvas>
                                 </div>
@@ -165,6 +175,16 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                <!-- Show All/Less Toggle -->
+                                <div class="category-toggle-container" x-show="rawData.languages.length > 100">
+                                    <button @click="toggleLanguages()" class="btn btn-small btn-outline category-toggle-btn">
+                                        <span x-show="!languagesExpanded">Show All</span>
+                                        <span x-show="languagesExpanded">Show Less</span>
+                                    </button>
+                                    <span class="category-count-info" x-show="!languagesExpanded && rawData.languages.length > 100">
+                                        Showing top 100 of <span x-text="rawData.languages.length"></span> languages
+                                    </span>
+                                </div>
                                 <div class="chart-container">
                                     <canvas id="languagesChart"></canvas>
                                 </div>
@@ -185,6 +205,16 @@
                                             </template>
                                         </tbody>
                                     </table>
+                                </div>
+                                <!-- Show All/Less Toggle -->
+                                <div class="category-toggle-container" x-show="rawData.genres.length > 100">
+                                    <button @click="toggleGenres()" class="btn btn-small btn-outline category-toggle-btn">
+                                        <span x-show="!genresExpanded">Show All</span>
+                                        <span x-show="genresExpanded">Show Less</span>
+                                    </button>
+                                    <span class="category-count-info" x-show="!genresExpanded && rawData.genres.length > 100">
+                                        Showing top 100 of <span x-text="rawData.genres.length"></span> genres
+                                    </span>
                                 </div>
                                 <div class="chart-container">
                                     <canvas id="genresChart"></canvas>
@@ -221,11 +251,11 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <!-- Show All Toggle -->
+                                <!-- Show All/Less Toggle -->
                                 <div class="actors-toggle-container" x-show="rawData.actors.length > 100">
                                     <button @click="toggleActors()" class="btn btn-small btn-outline actors-toggle-btn">
-                                        <span x-show="!actorsExpanded">⬇️ Show All <span x-text="rawData.actors.length + ' Actors'"></span></span>
-                                        <span x-show="actorsExpanded">⬆️ Show Less</span>
+                                        <span x-show="!actorsExpanded">Show All</span>
+                                        <span x-show="actorsExpanded">Show Less</span>
                                     </button>
                                     <span class="actors-count-info" x-show="!actorsExpanded && rawData.actors.length > 100">
                                         Showing top 100 of <span x-text="rawData.actors.length"></span> actors
@@ -251,6 +281,16 @@
                                             </template>
                                         </tbody>
                                     </table>
+                                </div>
+                                <!-- Show All/Less Toggle -->
+                                <div class="category-toggle-container" x-show="rawData.directors.length > 100">
+                                    <button @click="toggleDirectors()" class="btn btn-small btn-outline category-toggle-btn">
+                                        <span x-show="!directorsExpanded">Show All</span>
+                                        <span x-show="directorsExpanded">Show Less</span>
+                                    </button>
+                                    <span class="category-count-info" x-show="!directorsExpanded && rawData.directors.length > 100">
+                                        Showing top 100 of <span x-text="rawData.directors.length"></span> directors
+                                    </span>
                                 </div>
                                 <div class="chart-container">
                                     <canvas id="directorsChart"></canvas>

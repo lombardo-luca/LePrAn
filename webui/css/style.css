@@ -456,7 +456,9 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     overflow: hidden;
-    min-height: 400px;
+    height: 610px;
+    display: flex;
+    flex-direction: column;
 }
 
 /* --- Panel Tabs --- */
@@ -493,6 +495,27 @@ body {
 /* --- Panel Content --- */
 .panel-content {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 0;
+}
+
+.panel-content > .table-container {
+    flex-shrink: 0;
+    max-height: 280px;
+}
+
+.panel-content > .category-toggle-container,
+.panel-content > .actors-toggle-container {
+    flex-shrink: 0;
+    margin: 8px 0;
+    min-height: 48px;
+}
+
+.panel-content > .chart-container {
+    flex: 1;
+    min-height: 0;
 }
 
 /* --- Table --- */
@@ -593,6 +616,45 @@ body {
 .actors-count-info {
     font-size: 0.8rem;
     color: var(--text-secondary);
+}
+
+/* --- Generic Category Toggle Button (Countries, Languages, Genres, Directors) --- */
+.category-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.category-toggle-btn {
+    white-space: nowrap;
+}
+
+.category-count-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* --- Category Toggle Spacer (for equal column height) --- */
+.category-toggle-spacer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0;
+}
+
+/* --- Actors Toggle Spacer (for equal column height) --- */
+.actors-toggle-spacer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0;
 }
 
 /* --- Footer --- */
