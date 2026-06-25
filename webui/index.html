@@ -131,11 +131,12 @@
                                 <div class="table-container">
                                     <table class="data-table">
                                         <thead>
-                                            <tr><th>Name</th><th>Films</th><th>%</th></tr>
+                                            <tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.countries" :key="idx">
                                                 <tr>
+                                                    <td x-text="idx + 1"></td>
                                                     <td x-text="item.name"></td>
                                                     <td x-text="item.count"></td>
                                                     <td x-text="item.percent"></td>
@@ -163,10 +164,11 @@
                             <div class="panel-content" x-show="leftPanel === 'languages'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.languages" :key="idx">
                                                 <tr>
+                                                    <td x-text="idx + 1"></td>
                                                     <td x-text="item.name"></td>
                                                     <td x-text="item.count"></td>
                                                     <td x-text="item.percent"></td>
@@ -194,10 +196,11 @@
                             <div class="panel-content" x-show="leftPanel === 'genres'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.genres" :key="idx">
                                                 <tr>
+                                                    <td x-text="idx + 1"></td>
                                                     <td x-text="item.name"></td>
                                                     <td x-text="item.count"></td>
                                                     <td x-text="item.percent"></td>
@@ -239,10 +242,11 @@
                             <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.actors" :key="idx">
                                                 <tr>
+                                                    <td x-text="idx + 1"></td>
                                                     <td x-text="item.name"></td>
                                                     <td x-text="item.count"></td>
                                                     <td x-text="item.percent"></td>
@@ -270,10 +274,11 @@
                             <div class="panel-content" x-show="rightPanel === 'directors'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.directors" :key="idx">
                                                 <tr>
+                                                    <td x-text="idx + 1"></td>
                                                     <td x-text="item.name"></td>
                                                     <td x-text="item.count"></td>
                                                     <td x-text="item.percent"></td>
