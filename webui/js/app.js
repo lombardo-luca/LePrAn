@@ -372,8 +372,8 @@ function lepranApp() {
                 const canvas = document.getElementById(config.id);
                 if (!canvas || !config.data.length) return;
                 
-                // Get top 10 items for chart readability
-                const topItems = config.data.slice(0, 10);
+                // Sort by count descending and get top 10 items for chart readability
+                const topItems = [...config.data].sort((a, b) => b.count - a.count).slice(0, 10);
                 
                 this.charts[config.id] = new Chart(canvas, {
                     type: 'bar',
