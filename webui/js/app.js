@@ -35,23 +35,39 @@ function lepranApp() {
             scrapedAt: ''
         },
         
-        // Raw category data from backend
-        rawData: {
-            countries: [],
-            languages: [],
-            genres: [],
-            directors: [],
-            actors: []
-        },
-        
-        // Computed sorted data (for display)
-        get sortedData() {
-            const result = {};
-            for (const key of Object.keys(this.rawData)) {
-                result[key] = [...this.rawData[key]].sort((a, b) => b.count - a.count);
-            }
-            return result;
-        },
+         // Panel state (moved to parent so both columns share the same scope)
+         leftPanel: 'countries',
+         rightPanel: 'actors',
+         
+         // Actors display control
+         actorsExpanded: false,
+         ACTORS_DISPLAY_LIMIT: 100,
+         
+         // Raw category data from backend
+         rawData: {
+             countries: [],
+             languages: [],
+             genres: [],
+             directors: [],
+             actors: []
+         },
+         
+         // Computed sorted data (for display)
+         // Actors are limited to top 100 unless actorsExpanded is true
+         get sortedData() {
+             const result = {};
+             for (const key of Object.keys(this.rawData)) {
+                 let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
+                 
+                 // Limit actors to top 100 unless expanded
+                 if (key === 'actors' && !this.actorsExpanded) {
+                     sorted = sorted.slice(0, this.ACTORS_DISPLAY_LIMIT);
+                 }
+                 
+                 result[key] = sorted;
+             }
+             return result;
+         },
         
         // Initialize
         init() {
@@ -304,6 +320,11 @@ function lepranApp() {
             const h = Math.floor(m / 60);
             const remM = m % 60;
             return remM > 0 ? `${h}h${remM}m` : `${h}h`;
+        },
+        
+        // Toggle actors list expansion
+        toggleActors() {
+            this.actorsExpanded = !this.actorsExpanded;
         },
         
         // Reset to input screen for new analysis

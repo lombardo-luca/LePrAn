@@ -113,7 +113,7 @@
                 <!-- Statistics Panels - Two Column Layout -->
                 <div class="stats-columns">
                     <!-- Left Column: Countries, Languages, Genres -->
-                    <div class="stat-column" x-data="{ leftPanel: 'countries' }">
+                    <div class="stat-column">
                         <div class="column-header">
                             <span class="column-title">📊 Statistics</span>
                             <div class="column-selector">
@@ -194,7 +194,7 @@
                     </div>
 
                     <!-- Right Column: Actors, Directors -->
-                    <div class="stat-column" x-data="{ rightPanel: 'actors' }">
+                    <div class="stat-column">
                         <div class="column-header">
                             <span class="column-title">👥 People</span>
                             <div class="column-selector">
@@ -220,6 +220,16 @@
                                             </template>
                                         </tbody>
                                     </table>
+                                </div>
+                                <!-- Show All Toggle -->
+                                <div class="actors-toggle-container" x-show="rawData.actors.length > 100">
+                                    <button @click="toggleActors()" class="btn btn-small btn-outline actors-toggle-btn">
+                                        <span x-show="!actorsExpanded">⬇️ Show All <span x-text="rawData.actors.length + ' Actors'"></span></span>
+                                        <span x-show="actorsExpanded">⬆️ Show Less</span>
+                                    </button>
+                                    <span class="actors-count-info" x-show="!actorsExpanded && rawData.actors.length > 100">
+                                        Showing top 100 of <span x-text="rawData.actors.length"></span> actors
+                                    </span>
                                 </div>
                                 <div class="chart-container">
                                     <canvas id="actorsChart"></canvas>
