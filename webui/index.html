@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LePrAn - Letterboxd Profile Analyzer</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body x-data="lepranApp()" x-init="init()">
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <img :src="logoPath" alt="LePrAn Logo" class="header-logo">
+                <h1 class="header-title">LePrAn</h1>
+                <p class="header-subtitle">Letterboxd Profile Analyzer</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section" x-show="!hasResults">
+                <div class="card">
+                    <h2 class="card-title">📁 Import Data</h2>
+                    
+                    <!-- CSV File Selection -->
+                    <div class="file-input-group">
+                        <label for="csv-file" class="file-label">Select Letterboxd Export CSV:</label>
+                        <div class="file-picker">
+                            <span class="file-name" x-text="selectedFileName || 'No file selected'"></span>
+                            <button @click="$refs.fileInput.click()" class="btn btn-secondary">Browse</button>
+                            <input type="file" x-ref="fileInput" accept=".csv" class="hidden-input" @change="handleFileSelect($event)">
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="button-group">
+                        <button @click="analyzeCSV()" :disabled="!selectedFile || isAnalyzing" 
+                                class="btn btn-primary btn-large">
+                            <span x-show="isAnalyzing" class="spinner"></span>
+                            <span x-text="isAnalyzing ? 'Analyzing...' : '🎯 Analyze with TMDB'"></span>
+                        </button>
+                        <button @click="loadSavedCSV()" :disabled="isAnalyzing" 
+                                class="btn btn-secondary btn-large">
+                            📂 Load Saved LePrAn Data
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container" x-show="isAnalyzing" x-transition>
+                        <div class="progress-header">
+                            <span>Processing films...</span>
+                            <span x-text="analysisProgress"></span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" :style="'width: ' + progressPercent + '%'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="info-box">
+                        <p>💡 Supports Letterboxd exported CSV files (watched.csv, diary.csv, ratings.csv, etc.)</p>
+                        <p>🔒 Your data stays local. TMDB API is used only for metadata enrichment.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" x-show="hasResults">
+                <!-- Summary Cards -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="card-icon">🎬</div>
+                        <div class="card-value" x-text="stats.filmsCount"></div>
+                        <div class="card-label">Films Watched</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-icon">⏱️</div>
+                        <div class="card-value" x-text="stats.totalRuntime"></div>
+                        <div class="card-label">Total Runtime</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-icon">📅</div>
+                        <div class="card-value" x-text="stats.scrapedAt || 'N/A'"></div>
+                        <div class="card-label">Scraped At</div>
+                    </div>
+                </div>
+
+                <!-- User Info Bar -->
+                <div class="user-bar">
+                    <span class="username">👤 <span x-text="'User: ' + stats.username"></span></span>
+                    <button @click="resetToInput()" class="btn btn-small btn-outline">New Analysis</button>
+                    <button @click="saveResults()" class="btn btn-small btn-primary">💾 Save Results</button>
+                </div>
+
+                <!-- Statistics Panels Grid -->
+                <div class="stats-grid">
+                    <!-- Top Row: Countries, Languages, Genres -->
+                    <div class="stat-panel" x-data="{ activeTab: 'countries' }">
+                        <div class="panel-tabs">
+                            <button :class="['tab-btn', { active: activeTab === 'countries' }]" 
+                                    @click="activeTab = 'countries'">🌍 Countries</button>
+                            <button :class="['tab-btn', { active: activeTab === 'languages' }]" 
+                                    @click="activeTab = 'languages'">🗣️ Languages</button>
+                            <button :class="['tab-btn', { active: activeTab === 'genres' }]" 
+                                    @click="activeTab = 'genres'">🎭 Genres</button>
+                        </div>
+
+                        <!-- Countries Panel -->
+                        <div class="panel-content" x-show="activeTab === 'countries'" x-transition>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr><th>Name</th><th>Films</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in sortedData.countries" :key="idx">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.count"></td>
+                                                <td x-text="item.percent"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="countriesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Languages Panel -->
+                        <div class="panel-content" x-show="activeTab === 'languages'" x-transition>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in sortedData.languages" :key="idx">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.count"></td>
+                                                <td x-text="item.percent"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="languagesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Genres Panel -->
+                        <div class="panel-content" x-show="activeTab === 'genres'" x-transition>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in sortedData.genres" :key="idx">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.count"></td>
+                                                <td x-text="item.percent"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="genresChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Row: Directors, Actors -->
+                    <div class="stat-panel bottom-row" x-data="{ activeTab: 'directors' }">
+                        <div class="panel-tabs">
+                            <button :class="['tab-btn', { active: activeTab === 'directors' }]" 
+                                    @click="activeTab = 'directors'">🎬 Directors</button>
+                            <button :class="['tab-btn', { active: activeTab === 'actors' }]" 
+                                    @click="activeTab = 'actors'">⭐ Actors</button>
+                        </div>
+
+                        <!-- Directors Panel -->
+                        <div class="panel-content" x-show="activeTab === 'directors'" x-transition>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in sortedData.directors" :key="idx">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.count"></td>
+                                                <td x-text="item.percent"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="directorsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Actors Panel -->
+                        <div class="panel-content" x-show="activeTab === 'actors'" x-transition>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                    <tbody>
+                                        <template x-for="(item, idx) in sortedData.actors" :key="idx">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.count"></td>
+                                                <td x-text="item.percent"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="actorsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Made by Luca 'Syr' Lombardo | LePrAn v2.0</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
