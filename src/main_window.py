@@ -212,19 +212,39 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.header5.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
     def _is_lepran_format(self, csv_path: str) -> bool:
-        """Check if CSV file is in LePrAn saved format (has META section) vs Letterboxd export."""
+        """Check if CSV file is in LePrAn saved format (has META section) vs Letterboxd export.
+        
+        LePrAn saved CSV format contains sections like:
+          META, LANGUAGE, COUNTRY, GENRE, DIRECTOR, ACTOR, DECADE
+        
+        Letterboxd export CSV has headers like:
+          Date, Name, Year, Letterboxd URI (or variants)
+        """
         try:
             with open(csv_path, 'r', encoding='utf-8-sig') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    if len(row) >= 1 and row[0].strip().upper() == 'META':
-                        return True
-                    if len(row) >= 1 and row[0].strip().lower() in ('date', 'name', 'title', 'film'):
-                        return False
+                content = f.read()
+            lines = [l.strip().upper() for l in content.strip().split('\n') if l.strip()]
+            
+            lepran_indicators = {'META', 'HOURS', 'DAYS', 'LANGUAGE', 'COUNTRY', 'GENRE', 'DIRECTOR', 'ACTOR', 'DECADE'}
+            letterboxd_indicators = {'DATE', 'NAME', 'YEAR', 'LETTERBOXD URI'}
+            
+            lepran_count = sum(1 for l in lines if l in lepran_indicators)
+            letterboxd_count = sum(1 for l in lines if l in letterboxd_indicators)
+            
+            # If we find META or HOURS, it's definitely LePrAn format
+            if lepran_count >= 2:
+                logger.debug(f"Detected LePrAn format (lepran_indicators={lepran_count})")
+                return True
+            # If we find Letterboxd header columns and no LePrAn indicators
+            if letterboxd_count >= 2 and lepran_count == 0:
+                logger.debug(f"Detected Letterboxd format (letterboxd_indicators={letterboxd_count})")
                 return False
+            # Default: assume LePrAn (safer, preserves runtime data)
+            logger.debug(f"Could not determine CSV format definitively (lepran={lepran_count}, letterboxd={letterboxd_count}), assuming LePrAn format")
+            return True
         except Exception as e:
             logger.warning(f"Could not detect CSV format, assuming LePrAn format: {e}")
-            return False
+            return True  # Changed: default to LePrAn (safer, preserves runtime data)
 
     def load_from_csv(self):
         """Load statistics from a CSV file.
@@ -243,6 +263,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if not file_path:
             return
         
+        logger.info(f"load_from_csv: selected file_path={file_path}")
+        
         # Re-enable save button for new file load
         if hasattr(self, 'ui') and hasattr(self.ui, 'pushButton_save'):
             self.ui.pushButton_save.setEnabled(True)
@@ -250,11 +272,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # Detect CSV format and route accordingly
         is_lepran_format = self._is_lepran_format(file_path)
+        logger.info(f"load_from_csv: is_lepran_format={is_lepran_format}")
         
         if is_lepran_format:
             # LePrAn saved format - load directly without TMDB API
             logger.info(f"Detected LePrAn saved CSV format: {file_path}")
             meta = self.data_manager.load_stats_from_csv(file_path)
+            logger.info(f"load_from_csv: meta loaded - films_num={getattr(meta, 'films_num', 'N/A')}, total_hours={getattr(meta, 'total_hours', 'N/A')}, total_days={getattr(meta, 'total_days', 'N/A')}")
             
             # Extract username from LoadedStats object
             if hasattr(meta, 'username') and meta.username:
@@ -285,26 +309,36 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.thread.start()
 
     def _load_letterboxd_csv_count_only(self, csv_path: str):
-        """Load Letterboxd CSV and count films without TMDB API (fallback mode)."""
+        """Load Letterboxd CSV and count films without TMDB API (fallback mode).
+        
+        Also attempts to extract runtime from META section if present (LePrAn format fallback).
+        """
         scraper = TMDbScraper(self.app_context)
         films = scraper.parse_csv_file(csv_path)
         
-        if not films:
-            self.loginInput = "(no films found)"
-            logger.warning(f"No films found in Letterboxd CSV: {csv_path}")
-            # Still show the dialog
-            self.loginComplete()
-            return
+        films_count = 0
+        total_hours = 0.0
         
-        # Count unique films (some exports may have duplicates)
-        unique_films = set(name.lower().strip() for name, year in films)
-        films_count = len(unique_films)
+        if films:
+            # Count unique films (some exports may have duplicates)
+            unique_films = set(name.lower().strip() for name, year in films)
+            films_count = len(unique_films)
+            logger.info(f"Loaded {films_count} unique films from Letterboxd CSV (count-only mode)")
+        else:
+            # No films parsed - check if this might actually be a LePrAn format CSV
+            # that was misidentified. Try to extract META values directly.
+            logger.warning(f"No films found in Letterboxd CSV: {csv_path}. "
+                          f"Attempting to parse as LePrAn format...")
+            films_count, total_hours = self._extract_lepran_meta_from_csv(csv_path)
+            if films_count > 0 or total_hours > 0:
+                logger.info(f"Successfully extracted LePrAn META: {films_count} films, {total_hours:.6f} hours")
+            else:
+                logger.warning("No valid data found in CSV file")
         
-        logger.info(f"Loaded {films_count} unique films from Letterboxd CSV (count-only mode)")
-        
-        # Set basic stats without TMDB metadata
+        # Set basic stats
         scraped_when = time.strftime("%d/%m/%Y", time.localtime())
-        self.app_context.stats_data.set_meta_data(films_count, 0.0, 0.0, scraped_when)
+        total_days = total_hours / 24.0
+        self.app_context.stats_data.set_meta_data(films_count, total_hours, total_days, scraped_when)
         
         try:
             self.loginInput = os.path.splitext(os.path.basename(csv_path))[0]
@@ -313,6 +347,42 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # Show results dialog
         self.loginComplete()
+
+    def _extract_lepran_meta_from_csv(self, csv_path: str):
+        """Extract META values (films_count, total_hours) from a LePrAn-format CSV.
+        
+        This is a fallback parser for when the format detection fails and the CSV
+        is actually in LePrAn saved format (with META/LANGUAGE/COUNTRY sections).
+        
+        Returns:
+            tuple: (films_count, total_hours)
+        """
+        films_count = 0
+        total_hours = 0.0
+        
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) < 3:
+                        continue
+                    section, name, count = row[0].strip().upper(), row[1].strip().upper(), row[2].strip()
+                    
+                    if section == 'META':
+                        if name == 'FILMS':
+                            try:
+                                films_count = int(count)
+                            except ValueError:
+                                films_count = 0
+                        elif name == 'HOURS':
+                            try:
+                                total_hours = float(count)
+                            except ValueError:
+                                total_hours = 0.0
+        except Exception as e:
+            logger.warning(f"Failed to extract LePrAn META from CSV: {e}")
+        
+        return films_count, total_hours
 
     def _tmdbLoadComplete(self):
         """Handle completion of TMDB analysis from CSV load."""

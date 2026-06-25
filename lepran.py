@@ -249,6 +249,8 @@ class WebAPI:
             )
             root.destroy()
             
+            logger.info(f"load_saved_csv: selected file_path={file_path}")
+            
             if not file_path:
                 return {'success': False, 'error': 'No file selected'}
             
@@ -258,6 +260,8 @@ class WebAPI:
             
             # Load stats from CSV
             meta = self.data_manager.load_stats_from_csv(file_path)
+            
+            logger.info(f"load_saved_csv: meta loaded - films_num={getattr(meta, 'films_num', 'N/A')}, total_hours={getattr(meta, 'total_hours', 'N/A')}, total_days={getattr(meta, 'total_days', 'N/A')}")
             
             if not meta:
                 return {'success': False, 'error': 'Failed to load CSV data'}
@@ -270,6 +274,7 @@ class WebAPI:
             
             # Build result with loaded data
             stats = self.app_context.stats_data
+            logger.info(f"load_saved_csv: stats.total_hours={stats.total_hours}, stats.films_count={stats.films_count}")
             result = {
                 'success': True,
                 'username': self.login_input,
@@ -284,6 +289,7 @@ class WebAPI:
                 'actors': json.dumps(stats.actor_dict)
             }
             
+            logger.info(f"load_saved_csv: returning result with total_hours={result['total_hours']}")
             return result
             
         except Exception as e:

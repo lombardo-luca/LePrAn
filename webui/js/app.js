@@ -31,6 +31,7 @@ function lepranApp() {
             username: '',
             filmsCount: 0,
             totalRuntime: '0h',
+            totalHours: 0,
             scrapedAt: ''
         },
         
@@ -210,6 +211,7 @@ function lepranApp() {
                     username: result.username || 'Unknown',
                     filmsCount: result.films_count || 0,
                     totalRuntime: this.formatRuntime(result.total_hours || 0),
+                    totalHours: result.total_hours || 0,
                     scrapedAt: result.scraped_at || new Date().toLocaleDateString()
                 };
                 
@@ -315,7 +317,7 @@ function lepranApp() {
             this.hasResults = false;
             this.selectedFile = null;
             this.selectedFileName = '';
-            this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', scrapedAt: '' };
+            this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [] };
             
             // Destroy charts to free memory
@@ -331,7 +333,7 @@ function lepranApp() {
                     const result = await window.pywebview.api.save_results({
                         username: this.stats.username,
                         films_count: this.stats.filmsCount,
-                        total_hours: 0, // Could be stored in stats
+                        total_hours: this.stats.totalHours,
                         scraped_at: this.stats.scrapedAt,
                         countries: this.rawData.countries,
                         languages: this.rawData.languages,
