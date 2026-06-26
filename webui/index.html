@@ -88,11 +88,13 @@
                         <div class="card-icon">🎬</div>
                         <div class="card-value" x-text="stats.filmsCount"></div>
                         <div class="card-label">Films Watched</div>
+                        <div class="card-subtitle" x-show="filmsThisYear > 0" x-text="filmsThisYear + ' this year'"></div>
                     </div>
                     <div class="summary-card">
                         <div class="card-icon">⏱️</div>
                         <div class="card-value" x-text="stats.totalRuntime"></div>
                         <div class="card-label">Total Runtime</div>
+                        <div class="card-subtitle" x-text="formatDays(stats.totalDays)"></div>
                     </div>
                     <div class="summary-card">
                         <div class="card-icon">📅</div>

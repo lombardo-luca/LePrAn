@@ -26,14 +26,15 @@ function lepranApp() {
         // Charts instances
         charts: {},
         
-        // Stats data
-        stats: {
-            username: '',
-            filmsCount: 0,
-            totalRuntime: '0h',
-            totalHours: 0,
-            scrapedAt: ''
-        },
+         // Stats data
+         stats: {
+             username: '',
+             filmsCount: 0,
+             totalRuntime: '0h',
+             totalHours: 0,
+             totalDays: 0,
+             scrapedAt: ''
+         },
         
          // Panel state (moved to parent so both columns share the same scope)
          leftPanel: 'countries',
@@ -62,12 +63,20 @@ function lepranApp() {
               decades: []
           },
           
-          // Raw diary/financial data from backend
-          rawDiaryData: {
-              weekday: [],
-              month: [],
-              year: []
-          },
+           // Raw diary/financial data from backend
+           rawDiaryData: {
+               weekday: [],
+               month: [],
+               year: []
+           },
+           
+           // Computed: films watched in the current system year
+           get filmsThisYear() {
+               const currentYear = new Date().getFullYear().toString();
+               const yearData = this.rawDiaryData.year || [];
+               const entry = yearData.find(item => item.name === currentYear);
+               return entry ? entry.count : 0;
+           },
           rawFinancialData: {
               budget: [],
               boxoffice: []
@@ -415,11 +424,13 @@ function lepranApp() {
                         const r = result.result || {};
                         
                         // Update stats display from imported data
+                        const savedTotalHours = r.total_hours || this.stats.totalHours || 0;
                         this.stats = {
                             username: r.username || this.stats.username || 'Imported',
                             filmsCount: r.films_count || this.stats.filmsCount || 0,
-                            totalRuntime: this.formatRuntime(r.total_hours || this.stats.totalHours || 0),
-                            totalHours: r.total_hours || this.stats.totalHours || 0,
+                            totalRuntime: this.formatRuntime(savedTotalHours),
+                            totalHours: savedTotalHours,
+                            totalDays: savedTotalHours / 24,
                             scrapedAt: r.scraped_at || this.stats.scrapedAt || 'Imported'
                         };
                         
@@ -494,11 +505,13 @@ function lepranApp() {
             
             // Parse result data
             if (result.success) {
+                const totalHours = result.total_hours || 0;
                 this.stats = {
                     username: result.username || 'Unknown',
                     filmsCount: result.films_count || 0,
-                    totalRuntime: this.formatRuntime(result.total_hours || 0),
-                    totalHours: result.total_hours || 0,
+                    totalRuntime: this.formatRuntime(totalHours),
+                    totalHours: totalHours,
+                    totalDays: totalHours / 24,
                     scrapedAt: result.scraped_at || new Date().toLocaleDateString()
                 };
                 
@@ -628,6 +641,13 @@ function lepranApp() {
             return `${h}h ${m}m`;
         },
         
+        // Format total hours into days (display-only)
+        formatDays(days) {
+            if (!days || days === 0) return '~ 0.00 days';
+            const d = days / 24;
+            return '~ ' + d.toFixed(2) + ' days';
+        },
+        
         // Format ETA in seconds to readable string (e.g., "2m30s", "1h15m", "45s")
         formatETA(seconds) {
             if (!seconds || seconds <= 0) return 'Calculating...';
@@ -674,18 +694,18 @@ function lepranApp() {
             this.financialExpanded = !this.financialExpanded;
         },
         
-        // Reset to input screen for new analysis
-        resetToInput() {
-            // Clean up polling interval if still active
-            if (this._progressInterval) {
-                clearInterval(this._progressInterval);
-                this._progressInterval = null;
-            }
-            
-            this.hasResults = false;
-            this.selectedFolder = null;
-            this.selectedFolderName = '';
-            this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, scrapedAt: '' };
+         // Reset to input screen for new analysis
+         resetToInput() {
+             // Clean up polling interval if still active
+             if (this._progressInterval) {
+                 clearInterval(this._progressInterval);
+                 this._progressInterval = null;
+             }
+             
+             this.hasResults = false;
+             this.selectedFolder = null;
+             this.selectedFolderName = '';
+             this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
             
             // Destroy charts to free memory

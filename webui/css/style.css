@@ -372,6 +372,12 @@ body {
     letter-spacing: 0.5px;
 }
 
+.card-subtitle {
+    font-size: 1.0rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
 /* --- User Bar --- */
 .user-bar {
     display: flex;
