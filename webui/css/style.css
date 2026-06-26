@@ -686,9 +686,32 @@ body {
     font-size: 0.8rem;
 }
 
+/* --- Analytics Columns (Bottom Row: Diary + Financial) --- */
+.analytics-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.analytics-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.analytics-column .column-header {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.analytics-column .stat-panel {
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
 /* --- Responsive --- */
 @media (max-width: 900px) {
-    .stats-columns {
+    .stats-columns,
+    .analytics-columns {
         grid-template-columns: 1fr;
     }
     

@@ -104,16 +104,21 @@ class CSVFileParser:
     NAME_COLUMNS = {'name', 'title', 'film'}
     YEAR_COLUMNS = {'year', 'release_year'}
     DATE_COLUMNS = {'date'}
+    WATCHED_DATE_COLUMNS = {'watched date'}
     URI_COLUMNS = {'letterboxd uri', 'uri', 'link'}
 
-    def parse_csv_file(self, csv_path: str) -> list[tuple[str, str, str, str]]:
+    def parse_csv_file(self, csv_path: str) -> list[tuple[str, str, str, str, str]]:
         """Parse a Letterboxd-exported CSV file.
+
+        Returns 5-tuples: (date, watched_date, name, year, uri).
+        For watched.csv / watchlist.csv, watched_date will be empty string.
+        For diary.csv, watched_date contains the actual "Watched Date" value.
 
         Args:
             csv_path: Path to the CSV file.
 
         Returns:
-            List of (date, name, year, uri) tuples.
+            List of (date, watched_date, name, year, uri) tuples.
         """
         entries = []
 
@@ -142,6 +147,7 @@ class CSVFileParser:
                 name_idx = self._find_column(header, self.NAME_COLUMNS)
                 year_idx = self._find_column(header, self.YEAR_COLUMNS)
                 date_idx = self._find_column(header, self.DATE_COLUMNS)
+                watched_date_idx = self._find_column(header, self.WATCHED_DATE_COLUMNS)
                 uri_idx = self._find_column(header, self.URI_COLUMNS)
 
                 # Validate name column exists
@@ -166,11 +172,15 @@ class CSVFileParser:
                     if date_idx is not None and date_idx < len(row):
                         date = row[date_idx].strip()
 
+                    watched_date = ''
+                    if watched_date_idx is not None and watched_date_idx < len(row):
+                        watched_date = row[watched_date_idx].strip()
+
                     uri = ''
                     if uri_idx is not None and uri_idx < len(row):
                         uri = row[uri_idx].strip()
 
-                    entries.append((date, name, year, uri))
+                    entries.append((date, watched_date, name, year, uri))
 
         except FileNotFoundError:
             logger.error(f"CSV file not found: {csv_path}")
@@ -194,13 +204,13 @@ class CSVFileParser:
                 return i
         return None
 
-    def extract_unique_films(self, entries: list[tuple[str, str, str, str]]) -> list[tuple[str, str]]:
+    def extract_unique_films(self, entries: list[tuple[str, str, str, str, str]]) -> list[tuple[str, str]]:
         """Extract unique films from parsed entries.
 
         Deduplicates by (name, year) combination, preserving order of first occurrence.
 
         Args:
-            entries: List of (date, name, year, uri) tuples.
+            entries: List of (date, watched_date, name, year, uri) tuples.
 
         Returns:
             List of unique (name, year) tuples.
@@ -208,7 +218,7 @@ class CSVFileParser:
         seen = set()
         unique_films = []
 
-        for date, name, year, uri in entries:
+        for date, watched_date, name, year, uri in entries:
             key = (name.lower().strip(), year.strip())
             if key not in seen:
                 seen.add(key)
@@ -473,7 +483,7 @@ class FolderScraperCoordinator:
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)
         diary_entries = folder_data['diary']
         diary_films = self.data_loader.parser.extract_unique_films(diary_entries)
-        logger.info(f"Step 1: Processing {len(diary_films)} unique films from diary.csv (with date watched)")
+        logger.info(f"Step 1: Processing {len(diary_films)} unique films from diary.csv ({len(diary_entries)} total entries, {len(diary_entries) - len(diary_films)} duplicates for scraping)")
 
         if progress_callback:
             progress_callback(5, f"Processing diary entries ({len(diary_films)} films)...")
@@ -485,7 +495,7 @@ class FolderScraperCoordinator:
         # Step 2: Process watched.csv - skip films already in diary cache
         watched_entries = folder_data['watched']
         watched_films = self.data_loader.parser.extract_unique_films(watched_entries)
-        logger.info(f"Step 2: Checking {len(watched_films)} watched films against diary cache...")
+        logger.info(f"Step 2: Checking {len(watched_films)} unique films from watched.csv ({len(watched_entries)} total entries) against diary cache...")
 
         # Filter watched films: only process those NOT already in diary cache
         watched_new_films = []
@@ -513,9 +523,11 @@ class FolderScraperCoordinator:
 
         # Store diary entries from diary.csv data
         self._store_diary_entries(diary_entries)
+        logger.info(f"Stored {len(self._diary_entries)} diary entries for analytics (all entries including duplicates)")
         
         # Store watched entries from watched.csv data
         self._store_watched_entries(watched_entries)
+        logger.info(f"Stored {len(self._watched_entries)} watched entries")
         
         # Store watchlist data from watchlist.csv if available
         if folder_data['watchlist']:
@@ -523,6 +535,9 @@ class FolderScraperCoordinator:
 
         # Transfer aggregated data to app context
         self._transfer_aggregated_data()
+
+        # Compute diary analytics (weekday/month/year aggregation) + financial analytics
+        self._compute_diary_and_financial_analytics()
 
         # Generate GUI strings - only use watched count for total
         total_films = watched_count  # Only watched films count for analytics
@@ -555,7 +570,7 @@ class FolderScraperCoordinator:
             'folder_path': folder_path
         }
 
-        logger.info(f"Folder scraping complete: {total_films} watched films (+ {diary_count} diary films ignored)")
+        logger.info(f"Folder scraping complete: {total_films} watched films, {diary_count} diary films (analytics use ALL {len(self._diary_entries)} diary entries)")
         return result
 
     def _reset_aggregation(self):
@@ -810,21 +825,100 @@ class FolderScraperCoordinator:
         stats.total_hours = hrs
         stats.total_days = dys
 
+    def _compute_diary_and_financial_analytics(self):
+        """Compute diary analytics (weekday/month/year) and financial analytics (budget/box-office ranking).
+        
+        Uses the stored diary entries and film records to compute:
+        - diary_weekday_counts: entries grouped by weekday name
+        - diary_month_counts: entries grouped by YYYY-MM
+        - diary_year_counts: entries grouped by YYYY
+        - film_budget_data: per-film budget values for ranking
+        - film_boxoffice_data: per-film box office values for ranking
+        """
+        stats = self.app_context.stats_data
+        
+        logger.info(f"Computing diary analytics from {len(self._diary_entries)} entries")
+        logger.info(f"Computing financial analytics from {len(self._film_records)} unique films")
+        
+        # --- Diary analytics ---
+        weekday_counts = {}
+        month_counts = {}
+        year_counts = {}
+        
+        for entry in self._diary_entries:
+            date_str = entry.get('date', '')
+            if not date_str:
+                continue
+            
+            # Parse date - expect YYYY-MM-DD format
+            try:
+                parts = date_str.split('-')
+                if len(parts) >= 3:
+                    year_str = parts[0]
+                    month_str = parts[1]
+                    
+                    # Compute weekday name
+                    import datetime
+                    date_obj = datetime.datetime(int(year_str), int(month_str), int(parts[2]))
+                    weekday_name = date_obj.strftime('%A')
+                    
+                    # Count by weekday
+                    weekday_counts[weekday_name] = weekday_counts.get(weekday_name, 0) + 1
+                    
+                    # Count by month (YYYY-MM)
+                    month_key = f"{year_str}-{month_str}"
+                    month_counts[month_key] = month_counts.get(month_key, 0) + 1
+                    
+                    # Count by year (YYYY)
+                    year_counts[year_str] = year_counts.get(year_str, 0) + 1
+            except (ValueError, IndexError):
+                # Skip invalid dates
+                continue
+        
+        # Store in stats_data
+        stats.diary_weekday_counts = weekday_counts
+        stats.diary_month_counts = month_counts
+        stats.diary_year_counts = year_counts
+        
+        # --- Financial analytics ---
+        # Extract per-film budget and box_office data from film records
+        budget_data = {}
+        boxoffice_data = {}
+        
+        for film_key, film_data in self._film_records.items():
+            title = film_data.get('title', '')
+            budget = film_data.get('budget')
+            box_office = film_data.get('box_office')
+            
+            if budget is not None and budget > 0:
+                budget_data[title] = budget
+            
+            if box_office is not None and box_office > 0:
+                boxoffice_data[title] = box_office
+        
+        stats.film_budget_data = budget_data
+        stats.film_boxoffice_data = boxoffice_data
+
     def _store_diary_entries(self, diary_entries: list):
         """Store diary entries with metadata from diary.csv data.
         
+        Uses Watched Date (not log Date) for all diary analytics aggregation.
+        
         Args:
-            diary_entries: List of (date, name, year, uri) tuples from diary.csv
+            diary_entries: List of (date, watched_date, name, year, uri) tuples from diary.csv
         """
-        for date, name, year, uri in diary_entries:
+        for date, watched_date, name, year, uri in diary_entries:
             # Try to find matching film record for additional metadata
             film_key = f"{name}|{year}"
             tmdb_id = None
             if film_key in self._film_records:
                 tmdb_id = self._film_records[film_key].get('tmdb_id')
             
+            # Use Watched Date as the primary date for analytics
+            # For snapshot export, store both: 'date' = watched_date (analytics), 'log_date' = original date
             entry = {
-                'date': date,
+                'date': watched_date,  # Analytics date = Watched Date (FIXED)
+                'log_date': date,      # Original log date (metadata only)
                 'title': name,
                 'year': year,
                 'rating': None,  # Will be populated from ratings.csv if available
@@ -838,9 +932,9 @@ class FolderScraperCoordinator:
         """Store watched entries from watched.csv data.
         
         Args:
-            watched_entries: List of (date, name, year, uri) tuples from watched.csv
+            watched_entries: List of (date, watched_date, name, year, uri) tuples from watched.csv
         """
-        for date, name, year, uri in watched_entries:
+        for date, watched_date, name, year, uri in watched_entries:
             entry = {
                 'title': name,
                 'year': year,
@@ -852,13 +946,13 @@ class FolderScraperCoordinator:
         """Store watchlist data from watchlist.csv if available.
         
         Args:
-            watchlist_entries: List of (date, name, year, uri) tuples from watchlist.csv
+            watchlist_entries: List of (date, watched_date, name, year, uri) tuples from watchlist.csv
         """
         if not watchlist_entries:
             return
         
         self._watchlist_data = []
-        for date, name, year, uri in watchlist_entries:
+        for date, watched_date, name, year, uri in watchlist_entries:
             entry = {
                 'title': name,
                 'year': year,

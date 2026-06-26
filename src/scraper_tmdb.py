@@ -50,7 +50,9 @@ class TMDbScraper:
             'directors': defaultdict(int),
             'actors': defaultdict(int),
             'decades': defaultdict(int),
-            'runtimes': []
+            'runtimes': [],
+            'film_budgets': defaultdict(float),
+            'film_boxoffices': defaultdict(float)
         }
         
         # Progress tracking
@@ -163,7 +165,9 @@ class TMDbScraper:
             'directors': [],
             'actors': [],
             'decade': None,
-            'runtime': 0
+            'runtime': 0,
+            'budget': 0,
+            'box_office': 0
         }
         
         if not movie_data:
@@ -192,6 +196,16 @@ class TMDbScraper:
         runtime = movie_data.get('runtime')
         if runtime and isinstance(runtime, (int, float)) and runtime > 0:
             film_data['runtime'] = int(runtime)
+        
+        # Budget
+        budget = movie_data.get('budget')
+        if budget and isinstance(budget, (int, float)) and budget > 0:
+            film_data['budget'] = int(budget)
+        
+        # Box office revenue
+        box_office = movie_data.get('revenue')
+        if box_office and isinstance(box_office, (int, float)) and box_office > 0:
+            film_data['box_office'] = int(box_office)
         
         # Release date / decade
         release_date = movie_data.get('release_date', '')
@@ -244,6 +258,9 @@ class TMDbScraper:
             
         if film_data['runtime'] > 0:
             self.stats_aggregator['runtimes'].append(film_data['runtime'])
+        
+        # Financial data - aggregate by film name (stored from caller context)
+        # Note: budget/box_office are stored per-film and transferred by the caller
     
     def parse_csv_file(self, csv_path):
         """Parse a Letterboxd-exported CSV file and extract (Name, Year) tuples.
@@ -347,13 +364,20 @@ class TMDbScraper:
             tmdb_movie = self.search_movie(name, year if year else None)
             
             film_data = {'languages': [], 'countries': [], 'genres': [], 
-                        'directors': [], 'actors': [], 'decade': None, 'runtime': 0}
+                        'directors': [], 'actors': [], 'decade': None, 'runtime': 0,
+                        'budget': 0, 'box_office': 0}
             
             if tmdb_movie:
                 tmdb_id = tmdb_movie.get('id')
                 if tmdb_id:
                     details = self.get_movie_details(tmdb_id)
                     film_data = self._extract_film_data(details, details)
+            
+            # Store financial data per film (use normalized name as key)
+            if film_data['budget'] > 0:
+                self.stats_aggregator['film_budgets'][name] = film_data['budget']
+            if film_data['box_office'] > 0:
+                self.stats_aggregator['film_boxoffices'][name] = film_data['box_office']
             
             # Aggregate data
             self._aggregate_film_data(film_data)
@@ -428,6 +452,10 @@ class TMDbScraper:
         stats.actor_dict.clear()
         stats.decade_dict.clear()
         
+        # Clear financial data
+        stats.film_budget_data.clear()
+        stats.film_boxoffice_data.clear()
+        
         # Transfer dictionaries
         for k, v in self.stats_aggregator['languages'].items():
             stats.lang_dict[k] = v
@@ -441,6 +469,12 @@ class TMDbScraper:
             stats.actor_dict[k] = v
         for k, v in self.stats_aggregator['decades'].items():
             stats.decade_dict[k] = v
+        
+        # Transfer financial data
+        for k, v in self.stats_aggregator['film_budgets'].items():
+            stats.film_budget_data[k] = int(v)
+        for k, v in self.stats_aggregator['film_boxoffices'].items():
+            stats.film_boxoffice_data[k] = int(v)
     
     def scrape_user_profile(self, csv_path):
         """Synchronous entry point - compatible with existing scraper interface."""

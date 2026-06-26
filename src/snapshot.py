@@ -83,14 +83,20 @@ class AnalyticsData:
     
     # Diary-specific statistics
     weekday_stats: Dict[str, int] = field(default_factory=dict)  # e.g., {"Monday": 5, "Tuesday": 3, ...}
+    month_stats: Dict[str, int] = field(default_factory=dict)     # e.g., {"2024-01": 10, "2024-02": 8, ...}
+    year_stats: Dict[str, int] = field(default_factory=dict)      # e.g., {"2024": 50, "2023": 45, ...}
     rating_stats: Dict[str, int] = field(default_factory=dict)  # e.g., {"5": 10, "4": 5, ...}
     tag_stats: Dict[str, int] = field(default_factory=dict)
     
-    # Financial statistics
+    # Financial statistics (aggregated totals)
     total_budget: Optional[float] = None
     total_box_office: Optional[float] = None
     avg_budget: Optional[float] = None
     avg_runtime: Optional[float] = None
+    
+    # Financial statistics (per-film ranking for analytics panel)
+    film_budget_ranking: Dict[str, float] = field(default_factory=dict)  # e.g., {"Film Name": 1000000.0, ...}
+    film_boxoffice_ranking: Dict[str, float] = field(default_factory=dict)  # e.g., {"Film Name": 5000000.0, ...}
     
     # Metadata
     username: str = ""
@@ -205,12 +211,16 @@ class ApplicationSnapshot:
                 'actor_stats': self.analytics.actor_stats,
                 'decade_stats': self.analytics.decade_stats,
                 'weekday_stats': self.analytics.weekday_stats,
+                'month_stats': self.analytics.month_stats,
+                'year_stats': self.analytics.year_stats,
                 'rating_stats': self.analytics.rating_stats,
                 'tag_stats': self.analytics.tag_stats,
                 'total_budget': self.analytics.total_budget,
                 'total_box_office': self.analytics.total_box_office,
                 'avg_budget': self.analytics.avg_budget,
                 'avg_runtime': self.analytics.avg_runtime,
+                'film_budget_ranking': self.analytics.film_budget_ranking,
+                'film_boxoffice_ranking': self.analytics.film_boxoffice_ranking,
                 'username': self.analytics.username,
                 'scraped_at': self.analytics.scraped_at,
                 'snapshot_version': self.analytics.snapshot_version
@@ -310,12 +320,16 @@ class ApplicationSnapshot:
             actor_stats=analytics_data.get('actor_stats', {}),
             decade_stats=analytics_data.get('decade_stats', {}),
             weekday_stats=analytics_data.get('weekday_stats', {}),
+            month_stats=analytics_data.get('month_stats', {}),
+            year_stats=analytics_data.get('year_stats', {}),
             rating_stats=analytics_data.get('rating_stats', {}),
             tag_stats=analytics_data.get('tag_stats', {}),
             total_budget=analytics_data.get('total_budget'),
             total_box_office=analytics_data.get('total_box_office'),
             avg_budget=analytics_data.get('avg_budget'),
             avg_runtime=analytics_data.get('avg_runtime'),
+            film_budget_ranking=analytics_data.get('film_budget_ranking', {}),
+            film_boxoffice_ranking=analytics_data.get('film_boxoffice_ranking', {}),
             username=analytics_data.get('username', ''),
             scraped_at=analytics_data.get('scraped_at', ''),
             snapshot_version=analytics_data.get('snapshot_version', SNAPSHOT_SCHEMA_VERSION)

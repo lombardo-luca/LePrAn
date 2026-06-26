@@ -254,7 +254,18 @@ class WebAPI:
             'genres': json.dumps(stats.genre_dict),
             'directors': json.dumps(stats.director_dict),
             'actors': json.dumps(stats.actor_dict),
-            'decades': json.dumps(dict(stats.decade_dict))
+            'decades': json.dumps(dict(stats.decade_dict)),
+            # Diary analytics (nested object format for frontend)
+            'diary_data': {
+                'weekday': dict(stats.diary_weekday_counts) if hasattr(stats, 'diary_weekday_counts') else {},
+                'month': dict(stats.diary_month_counts) if hasattr(stats, 'diary_month_counts') else {},
+                'year': dict(stats.diary_year_counts) if hasattr(stats, 'diary_year_counts') else {}
+            },
+            # Financial analytics (nested object format for frontend)
+            'financial_data': {
+                'budget': dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {},
+                'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {}
+            }
         }
     
     def load_snapshot(self):
@@ -316,7 +327,18 @@ class WebAPI:
                 'decade_stats': dict(stats.decade_dict),
                 'weekday_stats': {},
                 'rating_stats': {},
-                'tag_stats': {}
+                'tag_stats': {},
+                # Diary analytics
+                'diary_data': {
+                    'weekday': dict(stats.diary_weekday_counts) if hasattr(stats, 'diary_weekday_counts') else {},
+                    'month': dict(stats.diary_month_counts) if hasattr(stats, 'diary_month_counts') else {},
+                    'year': dict(stats.diary_year_counts) if hasattr(stats, 'diary_year_counts') else {}
+                },
+                # Financial analytics
+                'financial_data': {
+                    'budget': dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {},
+                    'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {}
+                }
             }
             
             # Merge restoration metadata into analytics result
@@ -401,6 +423,17 @@ class WebAPI:
                 'weekday_stats': {},
                 'rating_stats': {},
                 'tag_stats': {},
+                # Diary analytics (preserve from coordinator if available)
+                'diary_data': data.get('diary_data', {
+                    'weekday': {},
+                    'month': {},
+                    'year': {}
+                }),
+                # Financial analytics (preserve from coordinator if available)
+                'financial_data': data.get('financial_data', {
+                    'budget': {},
+                    'boxoffice': {}
+                }),
                 'username': data.get('username', ''),
                 'scraped_at': data.get('scraped_at', time.strftime("%d/%m/%Y", time.localtime()))
             }

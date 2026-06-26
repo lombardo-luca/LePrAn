@@ -76,9 +76,17 @@ class SnapshotExporter:
                 director_stats=analytics.get('director_stats', dict(self.stats_data.director_dict)),
                 actor_stats=analytics.get('actor_stats', dict(self.stats_data.actor_dict)),
                 decade_stats=analytics.get('decade_stats', dict(self.stats_data.decade_dict)),
-                weekday_stats=analytics.get('weekday_stats', {}),
+                weekday_stats=analytics.get('weekday_stats', dict(self.stats_data.diary_weekday_counts)),
+                month_stats=analytics.get('month_stats', dict(self.stats_data.diary_month_counts)),
+                year_stats=analytics.get('year_stats', dict(self.stats_data.diary_year_counts)),
                 rating_stats=analytics.get('rating_stats', {}),
                 tag_stats=analytics.get('tag_stats', {}),
+                total_budget=analytics.get('total_budget'),
+                total_box_office=analytics.get('total_box_office'),
+                avg_budget=analytics.get('avg_budget'),
+                avg_runtime=analytics.get('avg_runtime'),
+                film_budget_ranking=analytics.get('film_budget_ranking', dict(self.stats_data.film_budget_data)),
+                film_boxoffice_ranking=analytics.get('film_boxoffice_ranking', dict(self.stats_data.film_boxoffice_data)),
                 username=analytics.get('username', self.login_input),
                 scraped_at=analytics.get('scraped_at', self.stats_data.gui_scraped_at or datetime.now().strftime("%Y-%m-%d"))
             )
@@ -94,6 +102,11 @@ class SnapshotExporter:
                 director_stats=dict(self.stats_data.director_dict),
                 actor_stats=dict(self.stats_data.actor_dict),
                 decade_stats=dict(self.stats_data.decade_dict),
+                weekday_stats=dict(self.stats_data.diary_weekday_counts),
+                month_stats=dict(self.stats_data.diary_month_counts),
+                year_stats=dict(self.stats_data.diary_year_counts),
+                film_budget_ranking=dict(self.stats_data.film_budget_data),
+                film_boxoffice_ranking=dict(self.stats_data.film_boxoffice_data),
                 username=self.login_input,
                 scraped_at=self.stats_data.gui_scraped_at or datetime.now().strftime("%Y-%m-%d")
             )

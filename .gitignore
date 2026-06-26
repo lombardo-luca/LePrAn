@@ -14,3 +14,4 @@ performance_test.py
 memory-bank/
 *.json
 .clinerules/
+.env

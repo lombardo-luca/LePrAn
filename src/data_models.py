@@ -26,6 +26,15 @@ class StatisticsData:
             self.actor_dict = {}
             self.decade_dict = defaultdict(int)
             
+            # Diary analytics (multi-mode aggregation)
+            self.diary_weekday_counts = {}   # {"Monday": 120, "Tuesday": 110, ...}
+            self.diary_month_counts = {}     # {"2024-01": 45, "2024-02": 38, ...}
+            self.diary_year_counts = {}      # {"2024": 200, "2023": 180, ...}
+            
+            # Financial analytics (per-film ranking)
+            self.film_budget_data = {}       # {"Film Name": budget_amount, ...}
+            self.film_boxoffice_data = {}    # {"Film Name": box_office, ...}
+            
             # GUI display strings
             self.gui_watched1 = ""
             self.gui_watched2 = ""

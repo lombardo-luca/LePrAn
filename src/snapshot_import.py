@@ -144,6 +144,48 @@ class SnapshotImporter:
                 film_actors=film.actors,
                 decade=film.decade
             )
+        
+        # Rebuild diary analytics from diary entries
+        self._rebuild_diary_analytics(snapshot.diary_entries)
+        
+        # Rebuild financial analytics from film records
+        self._rebuild_financial_analytics(films)
+    
+    def _rebuild_diary_analytics(self, diary_entries: list):
+        """Rebuild diary analytics (weekday/month/year counts) from diary entries."""
+        from datetime import datetime
+        
+        for entry in diary_entries:
+            # Parse date and compute weekday
+            try:
+                dt = datetime.strptime(entry.date, "%Y-%m-%d")
+                weekday = dt.strftime("%A")  # e.g., "Monday"
+                self.stats_data.diary_weekday_counts[weekday] = \
+                    self.stats_data.diary_weekday_counts.get(weekday, 0) + 1
+                
+                # Month key: YYYY-MM
+                month_key = dt.strftime("%Y-%m")
+                self.stats_data.diary_month_counts[month_key] = \
+                    self.stats_data.diary_month_counts.get(month_key, 0) + 1
+            except (ValueError, AttributeError):
+                # Skip entries with invalid dates
+                pass
+            
+            # Year key: YYYY (from entry date or film year)
+            year_key = entry.date[:4] if len(entry.date) >= 4 else str(entry.year)
+            self.stats_data.diary_year_counts[year_key] = \
+                self.stats_data.diary_year_counts.get(year_key, 0) + 1
+    
+    def _rebuild_financial_analytics(self, films: dict):
+        """Rebuild financial analytics (budget/boxoffice per-film ranking) from film records."""
+        for key, film in films.items():
+            # Budget data
+            if film.budget is not None and film.budget > 0:
+                self.stats_data.film_budget_data[film.title] = film.budget
+            
+            # Box office data
+            if film.box_office is not None and film.box_office > 0:
+                self.stats_data.film_boxoffice_data[film.title] = film.box_office
     
     def _restore_from_rebuilt(self, snapshot: ApplicationSnapshot) -> dict:
         """Restore state after rebuilding from film records."""
@@ -193,6 +235,28 @@ class SnapshotImporter:
         
         self.stats_data.decade_dict.clear()
         self.stats_data.decade_dict.update(analytics.decade_stats)
+        
+        # Restore diary analytics from pre-computed stats
+        if analytics.weekday_stats:
+            self.stats_data.diary_weekday_counts.clear()
+            self.stats_data.diary_weekday_counts.update(analytics.weekday_stats)
+        
+        if analytics.month_stats:
+            self.stats_data.diary_month_counts.clear()
+            self.stats_data.diary_month_counts.update(analytics.month_stats)
+        
+        if analytics.year_stats:
+            self.stats_data.diary_year_counts.clear()
+            self.stats_data.diary_year_counts.update(analytics.year_stats)
+        
+        # Restore financial analytics from pre-computed ranking
+        if analytics.film_budget_ranking:
+            self.stats_data.film_budget_data.clear()
+            self.stats_data.film_budget_data.update(analytics.film_budget_ranking)
+        
+        if analytics.film_boxoffice_ranking:
+            self.stats_data.film_boxoffice_data.clear()
+            self.stats_data.film_boxoffice_data.update(analytics.film_boxoffice_ranking)
         
         # Set meta data
         self.stats_data.set_meta_data(

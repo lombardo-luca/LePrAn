@@ -60,6 +60,17 @@ function lepranApp() {
               decades: []
           },
           
+          // Raw diary/financial data from backend
+          rawDiaryData: {
+              weekday: [],
+              month: [],
+              year: []
+          },
+          rawFinancialData: {
+              budget: [],
+              boxoffice: []
+          },
+          
           // Chart type preferences per category ('bar' or 'pie')
           chartTypes: {
               countries: 'bar',
@@ -67,36 +78,64 @@ function lepranApp() {
               genres: 'bar',
               directors: 'bar',
               actors: 'bar',
-              decades: 'bar'
+              decades: 'bar',
+              diary: 'bar',
+              financial: 'bar'
           },
+          
+          // Diary aggregation mode: 'weekday', 'month', or 'year'
+          diaryAggregationMode: 'weekday',
+          
+          // Financial view mode: 'budget' or 'boxoffice'
+          financialViewMode: 'budget',
           
           // Pie chart slice limit (top N slices, rest grouped as "Other")
           pieSliceLimit: 7,
+          
+          // Financial value formatting helper
+          formatFinancialValue(value, mode) {
+              const num = parseFloat(value);
+              if (isNaN(num)) return '$0';
+              const formatted = num.toLocaleString('en-US');
+              return '$' + formatted;
+          },
          
-         // Computed sorted data (for display)
-         // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
-         get sortedData() {
-             const result = {};
-             const expansionStates = {
-                 countries: this.countriesExpanded,
-                 languages: this.languagesExpanded,
-                 genres: this.genresExpanded,
-                 directors: this.directorsExpanded,
-                 actors: this.actorsExpanded,
-                 decades: this.decadesExpanded
-             };
-             for (const key of Object.keys(this.rawData)) {
-                 let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
-                 
-                 // Limit to top 100 unless that category is expanded
-                 if (!expansionStates[key]) {
-                     sorted = sorted.slice(0, this.DISPLAY_LIMIT);
-                 }
-                 
-                 result[key] = sorted;
-             }
-             return result;
-         },
+          // Computed sorted data (for display)
+          // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
+          get sortedData() {
+              const result = {};
+              const expansionStates = {
+                  countries: this.countriesExpanded,
+                  languages: this.languagesExpanded,
+                  genres: this.genresExpanded,
+                  directors: this.directorsExpanded,
+                  actors: this.actorsExpanded,
+                  decades: this.decadesExpanded
+              };
+              for (const key of Object.keys(this.rawData)) {
+                  let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
+                  
+                  // Limit to top 100 unless that category is expanded
+                  if (!expansionStates[key]) {
+                      sorted = sorted.slice(0, this.DISPLAY_LIMIT);
+                  }
+                  
+                  result[key] = sorted;
+              }
+              return result;
+          },
+          
+          // Computed: sorted diary data based on current aggregation mode
+          get sortedDiaryData() {
+              const data = this.rawDiaryData[this.diaryAggregationMode] || [];
+              return [...data].sort((a, b) => b.count - a.count);
+          },
+          
+          // Computed: sorted financial data based on current view mode
+          get sortedFinancialData() {
+              const data = this.rawFinancialData[this.financialViewMode] || [];
+              return [...data].sort((a, b) => b.count - a.count);
+          },
         
         // Initialize
         init() {
@@ -161,7 +200,9 @@ function lepranApp() {
                 genres: 'genresChart',
                 directors: 'directorsChart',
                 actors: 'actorsChart',
-                decades: 'decadesChart'
+                decades: 'decadesChart',
+                diary: 'diaryChart',
+                financial: 'financialChart'
             };
             const chartId = categoryToChartId[category];
             if (!chartId) return;
@@ -200,7 +241,9 @@ function lepranApp() {
                 genres: this.rawData.genres,
                 directors: this.rawData.directors,
                 actors: this.rawData.actors,
-                decades: this.rawData.decades
+                decades: this.rawData.decades,
+                diary: this.sortedDiaryData,
+                financial: this.sortedFinancialData
             };
             const colorMap = {
                 countries: '#58a6ff',
@@ -208,7 +251,9 @@ function lepranApp() {
                 genres: '#bc8cff',
                 directors: '#d29922',
                 actors: '#f85149',
-                decades: '#f0883e'
+                decades: '#f0883e',
+                diary: '#58a6ff',
+                financial: '#3fb950'
             };
             
             this._createChart({
@@ -225,6 +270,20 @@ function lepranApp() {
             const targetType = currentType === 'bar' ? 'pie' : 'bar';
             const icon = targetType === 'pie' ? '🥧' : '📊';
             return `Switch to ${icon} ${targetType.charAt(0).toUpperCase() + targetType.slice(1)} chart`;
+        },
+
+        // Recreate diary chart when aggregation mode changes
+        onDiaryModeChange() {
+            this.$nextTick(() => {
+                this.recreateChartForCategory('diary');
+            });
+        },
+
+        // Recreate financial chart when view mode changes
+        onFinancialModeChange() {
+            this.$nextTick(() => {
+                this.recreateChartForCategory('financial');
+            });
         },
         
         // Handle folder selection via hidden file input
@@ -354,6 +413,27 @@ function lepranApp() {
                         this.rawData.actors = this.parseDictResult(JSON.stringify(r.actor_stats || {}));
                         this.rawData.decades = this.parseDictResult(JSON.stringify(r.decade_stats || {}));
                         
+                        // Load diary data from snapshot (new) - convert dict to array format
+                        if (r.diary_data) {
+                            this.rawDiaryData = {
+                                weekday: this._dictToDiaryArray(r.diary_data.weekday || {}),
+                                month: this._dictToDiaryArray(r.diary_data.month || {}),
+                                year: this._dictToDiaryArray(r.diary_data.year || {})
+                            };
+                        } else {
+                            this.rawDiaryData = { weekday: [], month: [], year: [] };
+                        }
+                        
+                        // Load financial data from snapshot (new) - convert dict to array format
+                        if (r.financial_data) {
+                            this.rawFinancialData = {
+                                budget: this._dictToFinancialArray(r.financial_data.budget || {}),
+                                boxoffice: this._dictToFinancialArray(r.financial_data.boxoffice || {})
+                            };
+                        } else {
+                            this.rawFinancialData = { budget: [], boxoffice: [] };
+                        }
+                        
                         // Initialize charts after DOM updates
                         this.$nextTick(() => {
                             this.initCharts();
@@ -412,6 +492,27 @@ function lepranApp() {
                 this.rawData.actors = this.parseDictResult(result.actors);
                 this.rawData.decades = this.parseDictResult(result.decades);
                 
+                // Load diary data (new) - convert dict to array format
+                if (result.diary_data) {
+                    this.rawDiaryData = {
+                        weekday: this._dictToDiaryArray(result.diary_data.weekday || {}),
+                        month: this._dictToDiaryArray(result.diary_data.month || {}),
+                        year: this._dictToDiaryArray(result.diary_data.year || {})
+                    };
+                } else {
+                    this.rawDiaryData = { weekday: [], month: [], year: [] };
+                }
+                
+                // Load financial data (new) - convert dict to array format
+                if (result.financial_data) {
+                    this.rawFinancialData = {
+                        budget: this._dictToFinancialArray(result.financial_data.budget || {}),
+                        boxoffice: this._dictToFinancialArray(result.financial_data.boxoffice || {})
+                    };
+                } else {
+                    this.rawFinancialData = { budget: [], boxoffice: [] };
+                }
+                
                 // Initialize charts after DOM updates
                 this.$nextTick(() => {
                     this.initCharts();
@@ -465,6 +566,32 @@ function lepranApp() {
                 console.error('Failed to parse dict data:', e);
                 return [];
             }
+        },
+        
+        // Convert diary dict (e.g. {Monday: 12, Friday: 25}) to array format
+        _dictToDiaryArray(dictData) {
+            if (!dictData || typeof dictData !== 'object') return [];
+            const total = Object.values(dictData).reduce((s, v) => s + (Number(v) || 0), 0);
+            return Object.entries(dictData)
+                .map(([name, count]) => ({
+                    name: String(name),
+                    count: Number(count) || 0,
+                    percent: total > 0 ? ((Number(count) || 0) / total * 100).toFixed(1) + '%' : '0.0%'
+                }))
+                .filter(item => item.count > 0);
+        },
+        
+        // Convert financial dict (e.g. {Inception: 500000000, ...}) to array format
+        _dictToFinancialArray(dictData) {
+            if (!dictData || typeof dictData !== 'object') return [];
+            const total = Object.values(dictData).reduce((s, v) => s + (Number(v) || 0), 0);
+            return Object.entries(dictData)
+                .map(([name, count]) => ({
+                    name: String(name),
+                    count: Number(count) || 0,
+                    percent: total > 0 ? ((Number(count) || 0) / total * 100).toFixed(1) + '%' : '0.0%'
+                }))
+                .filter(item => item.count > 0);
         },
         
         // Calculate percentage for a count value
@@ -684,7 +811,9 @@ function lepranApp() {
                 { id: 'genresChart', data: this.rawData.genres, color: '#bc8cff', category: 'genres' },
                 { id: 'directorsChart', data: this.rawData.directors, color: '#d29922', category: 'directors' },
                 { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' },
-                { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' }
+                { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' },
+                { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diary' },
+                { id: 'financialChart', data: this.sortedFinancialData, color: '#3fb950', category: 'financial' }
             ];
             
             chartConfigs.forEach(config => {

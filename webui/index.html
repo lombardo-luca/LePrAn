@@ -274,20 +274,20 @@
                         </div>
                     </div>
 
-                    <!-- Right Column: Actors, Directors -->
-                    <div class="stat-column">
-                        <div class="column-header">
-                            <span class="column-title">👥 People</span>
-                            <div class="column-selector">
-                                <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
-                                        @click="rightPanel = 'actors'">⭐ Actors</button>
-                                <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
-                                        @click="rightPanel = 'directors'">🎬 Directors</button>
-                            </div>
-                        </div>
-                        <div class="stat-panel">
-                            <!-- Actors Content -->
-                            <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
+                     <!-- Right Column: Actors, Directors -->
+                     <div class="stat-column">
+                         <div class="column-header">
+                             <span class="column-title">👥 People</span>
+                             <div class="column-selector">
+                                 <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
+                                         @click="rightPanel = 'actors'">⭐ Actors</button>
+                                 <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
+                                         @click="rightPanel = 'directors'">🎬 Directors</button>
+                             </div>
+                         </div>
+                         <div class="stat-panel">
+                             <!-- Actors Content -->
+                             <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
                                         <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
@@ -348,12 +348,109 @@
                                 <div class="chart-container">
                                     <canvas id="directorsChart"></canvas>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+
+                 <!-- Bottom Row: Diary + Financial Analytics -->
+                 <div class="analytics-columns">
+                     <!-- Left Bottom: Diary Analytics -->
+                     <div class="analytics-column">
+                         <div class="column-header">
+                             <span class="column-title">📔 Diary Analytics</span>
+                             <div class="column-selector">
+                                 <button :class="['selector-btn', { active: diaryAggregationMode === 'weekday' }]" 
+                                         @click="diaryAggregationMode = 'weekday'; onDiaryModeChange()">📅 Weekday</button>
+                                 <button :class="['selector-btn', { active: diaryAggregationMode === 'month' }]" 
+                                         @click="diaryAggregationMode = 'month'; onDiaryModeChange()">🗓️ Month</button>
+                                 <button :class="['selector-btn', { active: diaryAggregationMode === 'year' }]" 
+                                         @click="diaryAggregationMode = 'year'; onDiaryModeChange()">📆 Year</button>
+                             </div>
+                         </div>
+                         <div class="stat-panel">
+                             <div class="panel-content" x-transition>
+                                 <div class="table-container">
+                                     <table class="data-table">
+                                         <thead>
+                                             <tr>
+                                                 <th>Rank</th>
+                                                 <th x-text="diaryAggregationMode === 'weekday' ? 'Day' : (diaryAggregationMode === 'month' ? 'Month' : 'Year')"></th>
+                                                 <th>Films</th>
+                                                 <th>%</th>
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                             <template x-for="(item, idx) in sortedDiaryData" :key="idx">
+                                                 <tr>
+                                                     <td x-text="idx + 1"></td>
+                                                     <td x-text="item.name"></td>
+                                                     <td x-text="item.count"></td>
+                                                     <td x-text="item.percent"></td>
+                                                 </tr>
+                                             </template>
+                                         </tbody>
+                                     </table>
+                                 </div>
+                                 <!-- Chart Type Toggle -->
+                                 <div class="chart-type-toggle">
+                                     <button @click="toggleChartType('diary')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('diary')"></button>
+                                 </div>
+                                 <div class="chart-container">
+                                     <canvas id="diaryChart"></canvas>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Right Bottom: Financial Analytics -->
+                     <div class="analytics-column">
+                         <div class="column-header">
+                             <span class="column-title">💰 Financial Analytics</span>
+                             <div class="column-selector">
+                                 <button :class="['selector-btn', { active: financialViewMode === 'budget' }]" 
+                                         @click="financialViewMode = 'budget'; onFinancialModeChange()">💵 Budget</button>
+                                 <button :class="['selector-btn', { active: financialViewMode === 'boxoffice' }]" 
+                                         @click="financialViewMode = 'boxoffice'; onFinancialModeChange()">🎬 Box Office</button>
+                             </div>
+                         </div>
+                         <div class="stat-panel">
+                             <div class="panel-content" x-transition>
+                                 <div class="table-container">
+                                     <table class="data-table">
+                                         <thead>
+                                             <tr>
+                                                 <th>Rank</th>
+                                                 <th>Film</th>
+                                                 <th x-text="financialViewMode === 'budget' ? 'Budget ($)' : 'Box Office ($)'"></th>
+                                                 <th>%</th>
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                              <template x-for="(item, idx) in sortedFinancialData" :key="idx">
+                                                  <tr>
+                                                      <td x-text="idx + 1"></td>
+                                                      <td x-text="item.name"></td>
+                                                      <td x-text="formatFinancialValue(item.count, financialViewMode)"></td>
+                                                      <td x-text="item.percent"></td>
+                                                  </tr>
+                                              </template>
+                                         </tbody>
+                                     </table>
+                                 </div>
+                                 <!-- Chart Type Toggle -->
+                                 <div class="chart-type-toggle">
+                                     <button @click="toggleChartType('financial')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('financial')"></button>
+                                 </div>
+                                 <div class="chart-container">
+                                     <canvas id="financialChart"></canvas>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             </section>
+         </main>
 
         <!-- Footer -->
         <footer class="footer">
