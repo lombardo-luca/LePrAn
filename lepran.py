@@ -69,6 +69,51 @@ class WebAPI:
         self._films_speed = 0.0
         self._eta_seconds = 0.0
     
+    @staticmethod
+    def _read_username_from_profile_csv(folder_path: str) -> str:
+        """Read the username from profile.csv in the given folder.
+        
+        Letterboxd exports include a profile.csv file with user metadata.
+        The 'Username' field contains the display name to show in the UI.
+        
+        Args:
+            folder_path: Path to the Letterboxd export folder.
+            
+        Returns:
+            The username string if found, empty string otherwise.
+        """
+        import csv
+        profile_path = os.path.join(folder_path, 'profile.csv')
+        
+        try:
+            with open(profile_path, 'r', encoding='utf-8-sig') as f:
+                # Detect delimiter
+                sample = f.read(4096)
+                f.seek(0)
+                
+                try:
+                    dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+                    delimiter = dialect.delimiter
+                except csv.Error:
+                    delimiter = ','
+                
+                reader = csv.DictReader(f, delimiter=delimiter)
+                
+                # Look for 'Username' field (case-insensitive matching)
+                for row in reader:
+                    # Find the username key (could be 'Username', 'username', 'NAME', etc.)
+                    for key in row:
+                        if key.strip().lower() == 'username':
+                            value = row[key].strip()
+                            if value:
+                                return value
+        except FileNotFoundError:
+            logger.debug(f"profile.csv not found in {folder_path}")
+        except Exception as e:
+            logger.warning(f"Failed to read profile.csv from {folder_path}: {e}")
+        
+        return ''
+    
     def _update_progress(self, percent, status):
         """Update analysis progress (called from scraper callback).
         
@@ -160,6 +205,12 @@ class WebAPI:
                     
                     # Store coordinator reference for snapshot export
                     self._coordinator = coordinator
+                    
+                    # Read username from profile.csv (authoritative source)
+                    profile_username = WebAPI._read_username_from_profile_csv(folder_path)
+                    if profile_username:
+                        self.login_input = profile_username
+                        logger.info(f"Username loaded from profile.csv: {profile_username}")
                     
                     self.data_manager.generate_gui_strings(self.app_context.stats_data.films_count)
                     self._analysis_result = self._build_result()
