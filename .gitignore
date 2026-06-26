@@ -11,3 +11,6 @@ setup.bat
 gfx/*.ico
 optimization_test.py
 performance_test.py
+memory-bank/
+*.json
+.clinerules/
