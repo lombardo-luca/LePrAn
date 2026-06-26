@@ -615,8 +615,8 @@ class FolderScraperCoordinator:
                 film_data = self._scraped_cache[film_key]
                 logger.debug(f"Skipping duplicate: {name} ({year}) - using cached data")
             else:
-                # Fresh scrape
-                tmdb_movie = self.scraper.search_movie(name, year if year else None)
+                # Fresh scrape - hybrid search returns (movie, match_info) tuple
+                tmdb_movie, match_info = self.scraper.search_movie(name, year if year else None)
 
                 film_data = {'languages': [], 'countries': [], 'genres': [],
                             'directors': [], 'actors': [], 'decade': None, 'runtime': 0}
