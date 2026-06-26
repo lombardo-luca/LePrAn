@@ -113,7 +113,7 @@
                     <!-- Left Column: Countries, Languages, Genres -->
                     <div class="stat-column">
                         <div class="column-header">
-                            <span class="column-title">📊 Statistics</span>
+                            <span class="column-title">📊 Film</span>
                             <div class="column-selector">
                                 <button :class="['selector-btn', { active: leftPanel === 'countries' }]" 
                                         @click="leftPanel = 'countries'">🌍 Countries</button>
@@ -353,12 +353,12 @@
                      </div>
                  </div>
 
-                 <!-- Bottom Row: Diary + Financial Analytics -->
+                  <!-- Bottom Row: Diary + Finance -->
                  <div class="analytics-columns">
-                     <!-- Left Bottom: Diary Analytics -->
+                      <!-- Left Bottom: Diary -->
                      <div class="analytics-column">
                          <div class="column-header">
-                             <span class="column-title">📔 Diary Analytics</span>
+                              <span class="column-title">📔 Diary</span>
                              <div class="column-selector">
                                  <button :class="['selector-btn', { active: diaryAggregationMode === 'weekday' }]" 
                                          @click="diaryAggregationMode = 'weekday'; onDiaryModeChange()">📅 Weekday</button>
@@ -403,10 +403,10 @@
                          </div>
                      </div>
 
-                     <!-- Right Bottom: Financial Analytics -->
+                      <!-- Right Bottom: Finance -->
                      <div class="analytics-column">
                          <div class="column-header">
-                             <span class="column-title">💰 Financial Analytics</span>
+                              <span class="column-title">💰 Finance</span>
                              <div class="column-selector">
                                  <button :class="['selector-btn', { active: financialViewMode === 'budget' }]" 
                                          @click="financialViewMode = 'budget'; onFinancialModeChange()">💵 Budget</button>
