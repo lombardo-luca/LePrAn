@@ -615,17 +615,16 @@ class TMDbScraper:
         token = self._get_tmdb_token()
         if not token:
             logger.error("TMDB access token not configured. Please add TMDB_ACCESS_TOKEN to your .env file.")
-            print("\n[ERROR] TMDB access token not found in config!")
             return
         
         films = self.parse_csv_file(csv_path)
         if not films:
-            print("[INFO] No films found in CSV file.")
+            logger.info("No films found in CSV file.")
             return
         
         total_films = len(films)
-        print(f"\nFound {total_films} films in CSV file: {csv_path}")
-        print("Fetching data from TMDB API...")
+        logger.info(f"Found {total_films} films in CSV file: {csv_path}")
+        logger.info("Fetching data from TMDB API...")
         
         start_time = time.time()
         self.processed_count = 0
@@ -723,11 +722,11 @@ class TMDbScraper:
         hrs = sum(self.stats_aggregator['runtimes']) / 60 if self.stats_aggregator['runtimes'] else 0
         dys = hrs / 24
         
-        print(f"\nFilms processed: {films_count}")
-        print(f"Total time: {analysis_time:.1f}s")
-        print(f"Speed: {films_count/analysis_time:.1f} films/second")
+        logger.info(f"Films processed: {films_count}")
+        logger.info(f"Total time: {analysis_time:.1f}s")
+        logger.info(f"Speed: {films_count/analysis_time:.1f} films/second")
         
-        # Print TMDB match statistics summary
+        # Log TMDB match statistics summary
         ms = self.match_stats
         if ms['total'] > 0:
             avg_year_delta = sum(ms['year_deltas']) / len(ms['year_deltas']) if ms['year_deltas'] else 0
@@ -736,18 +735,18 @@ class TMDbScraper:
             fallback_pct = (ms['fallback_path'] / ms['total']) * 100
             match_rate = ((ms['total'] - ms['no_match']) / ms['total']) * 100
             
-            print("\n" + "=" * 50)
-            print("TMDB MATCH STATISTICS")
-            print("=" * 50)
-            print(f"  Total films: {ms['total']}")
-            print(f"  Match rate: {match_rate:.1f}% ({ms['total'] - ms['no_match']}/{ms['total']})")
-            print(f"  Fast path (STEP 1): {ms['fast_path']} ({fast_pct:.1f}%)")
-            print(f"  Fallback path (STEP 2): {ms['fallback_path']} ({fallback_pct:.1f}%)")
-            print(f"  No match found: {ms['no_match']}")
-            print(f"  Low confidence (year delta > 5): {ms['low_confidence']}")
-            print(f"  Average year delta: {avg_year_delta:.1f} years")
-            print(f"  Average confidence: {avg_confidence:.2f}")
-            print("=" * 50)
+            logger.info("=" * 50)
+            logger.info("TMDB MATCH STATISTICS")
+            logger.info("=" * 50)
+            logger.info(f"  Total films: {ms['total']}")
+            logger.info(f"  Match rate: {match_rate:.1f}% ({ms['total'] - ms['no_match']}/{ms['total']})")
+            logger.info(f"  Fast path (STEP 1): {ms['fast_path']} ({fast_pct:.1f}%)")
+            logger.info(f"  Fallback path (STEP 2): {ms['fallback_path']} ({fallback_pct:.1f}%)")
+            logger.info(f"  No match found: {ms['no_match']}")
+            logger.info(f"  Low confidence (year delta > 5): {ms['low_confidence']}")
+            logger.info(f"  Average year delta: {avg_year_delta:.1f} years")
+            logger.info(f"  Average confidence: {avg_confidence:.2f}")
+            logger.info("=" * 50)
         
         # Transfer aggregated data to app context
         self._transfer_aggregated_data()

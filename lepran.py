@@ -476,7 +476,7 @@ class WebAPI:
                 if k not in analytics_result:
                     analytics_result[k] = v
             
-            logger.info(f"Snapshot loaded from {file_path}: {analytics_result}")
+            logger.info(f"Snapshot loaded from {file_path}: {result.get('films_restored', stats.films_count)} films, method={result.get('method', 'unknown')}")
             return {'success': True, 'result': analytics_result}
                 
         except Exception as e:
