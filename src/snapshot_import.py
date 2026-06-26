@@ -186,6 +186,12 @@ class SnapshotImporter:
             # Box office data
             if film.box_office is not None and film.box_office > 0:
                 self.stats_data.film_boxoffice_data[film.title] = film.box_office
+        
+        # Compute budget range buckets from the rebuilt budget data
+        from lepran import WebAPI
+        budget_data = dict(self.stats_data.film_budget_data)
+        budget_range = WebAPI._compute_budget_range_buckets(budget_data)
+        self.stats_data.budget_range_buckets = budget_range
     
     def _restore_from_rebuilt(self, snapshot: ApplicationSnapshot) -> dict:
         """Restore state after rebuilding from film records."""
@@ -257,6 +263,11 @@ class SnapshotImporter:
         if analytics.film_boxoffice_ranking:
             self.stats_data.film_boxoffice_data.clear()
             self.stats_data.film_boxoffice_data.update(analytics.film_boxoffice_ranking)
+        
+        # Restore budget range buckets (backward compatible: empty dict if missing)
+        if analytics.budget_range_buckets:
+            self.stats_data.budget_range_buckets.clear()
+            self.stats_data.budget_range_buckets.update(analytics.budget_range_buckets)
         
         # Set meta data
         self.stats_data.set_meta_data(

@@ -49,9 +49,10 @@ function lepranApp() {
           genresExpanded: false,
           directorsExpanded: false,
           actorsExpanded: false,
-          decadesExpanded: false,
-          diaryExpanded: false,
-          financialExpanded: false,
+           decadesExpanded: false,
+           diaryExpanded: false,
+           financialExpanded: false,
+           budgetRangeExpanded: false,
          
           // Raw category data from backend
           rawData: {
@@ -77,31 +78,33 @@ function lepranApp() {
                const entry = yearData.find(item => item.name === currentYear);
                return entry ? entry.count : 0;
            },
-          rawFinancialData: {
-              budget: [],
-              boxoffice: []
-          },
+           rawFinancialData: {
+               budget: [],
+               boxoffice: []
+           },
+           rawBudgetRangeData: [],
           
            // Chart type preferences per category ('bar' or 'pie')
            // Diary has independent chart types per aggregation mode (matching Film panel pattern)
-           chartTypes: {
-               countries: 'bar',
-               languages: 'bar',
-               genres: 'bar',
-               directors: 'bar',
-               actors: 'bar',
-               decades: 'bar',
-               diaryWeekday: 'bar',
-               diaryMonth: 'bar',
-               diaryYear: 'bar',
-               financial: 'bar'
-           },
+            chartTypes: {
+                countries: 'bar',
+                languages: 'bar',
+                genres: 'bar',
+                directors: 'bar',
+                actors: 'bar',
+                decades: 'bar',
+                diaryWeekday: 'bar',
+                diaryMonth: 'bar',
+                diaryYear: 'bar',
+                financial: 'bar',
+                budgetRange: 'bar'
+            },
           
           // Diary aggregation mode: 'weekday', 'month', or 'year'
           diaryAggregationMode: 'weekday',
           
-          // Financial view mode: 'budget' or 'boxoffice'
-          financialViewMode: 'budget',
+           // Financial view mode: 'budget', 'budget_range', or 'boxoffice'
+           financialViewMode: 'budget',
           
           // Pie chart slice limit (top N slices, rest grouped as "Other")
           pieSliceLimit: 7,
@@ -150,16 +153,31 @@ function lepranApp() {
               return data;
           },
           
-          // Computed: sorted financial data based on current view mode
-          // Limited to DISPLAY_LIMIT entries unless financialExpanded is true
-          get sortedFinancialData() {
-              let data = this.rawFinancialData[this.financialViewMode] || [];
-              data = [...data].sort((a, b) => b.count - a.count);
-              if (!this.financialExpanded) {
-                  data = data.slice(0, this.DISPLAY_LIMIT);
-              }
-              return data;
-          },
+           // Computed: sorted financial data based on current view mode
+           // Limited to DISPLAY_LIMIT entries unless financialExpanded is true
+           get sortedFinancialData() {
+               let data = this.rawFinancialData[this.financialViewMode] || [];
+               data = [...data].sort((a, b) => b.count - a.count);
+               if (!this.financialExpanded) {
+                   data = data.slice(0, this.DISPLAY_LIMIT);
+               }
+               return data;
+           },
+           
+           // Computed: sorted budget range data (bucket aggregation)
+            get sortedBudgetRangeData() {
+                let data = [...this.rawBudgetRangeData];
+                // Sort by number of films descending, "Unknown / Not reported" last
+                data.sort((a, b) => {
+                    if (a.range === 'Unknown / Not reported') return 1;
+                    if (b.range === 'Unknown / Not reported') return -1;
+                    return b.count - a.count;
+                });
+                if (!this.budgetRangeExpanded) {
+                    data = data.slice(0, this.DISPLAY_LIMIT);
+                }
+                return data;
+            },
         
         // Initialize
         init() {
@@ -228,7 +246,8 @@ function lepranApp() {
                 diaryWeekday: 'diaryChart',
                 diaryMonth: 'diaryChart',
                 diaryYear: 'diaryChart',
-                financial: 'financialChart'
+                financial: 'financialChart',
+                budgetRange: 'budgetRangeChart'
             };
             const chartId = categoryToChartId[category];
             if (!chartId) return;
@@ -271,7 +290,8 @@ function lepranApp() {
                 diaryWeekday: this.sortedDiaryData,
                 diaryMonth: this.sortedDiaryData,
                 diaryYear: this.sortedDiaryData,
-                financial: this.sortedFinancialData
+                financial: this.sortedFinancialData,
+                budgetRange: this.sortedBudgetRangeData
             };
             const colorMap = {
                 countries: '#58a6ff',
@@ -283,7 +303,8 @@ function lepranApp() {
                 diaryWeekday: '#58a6ff',
                 diaryMonth: '#58a6ff',
                 diaryYear: '#58a6ff',
-                financial: '#3fb950'
+                financial: '#3fb950',
+                budgetRange: '#bc8cff'
             };
             
             this._createChart({
@@ -314,7 +335,11 @@ function lepranApp() {
         // Recreate financial chart when view mode changes
         onFinancialModeChange() {
             this.$nextTick(() => {
-                this.recreateChartForCategory('financial');
+                if (this.financialViewMode === 'budget_range') {
+                    this.recreateChartForCategory('budgetRange');
+                } else {
+                    this.recreateChartForCategory('financial');
+                }
             });
         },
         
@@ -459,8 +484,11 @@ function lepranApp() {
                                 budget: this._dictToFinancialArray(r.financial_data.budget || {}),
                                 boxoffice: this._dictToFinancialArray(r.financial_data.boxoffice || {})
                             };
+                            // Load budget range data from snapshot (new)
+                            this.rawBudgetRangeData = this._dictToBudgetRangeArray(r.financial_data.budget_range || {});
                         } else {
                             this.rawFinancialData = { budget: [], boxoffice: [] };
+                            this.rawBudgetRangeData = [];
                         }
                         
                         // Initialize charts after DOM updates
@@ -540,8 +568,11 @@ function lepranApp() {
                         budget: this._dictToFinancialArray(result.financial_data.budget || {}),
                         boxoffice: this._dictToFinancialArray(result.financial_data.boxoffice || {})
                     };
+                    // Load budget range data (new)
+                    this.rawBudgetRangeData = this._dictToBudgetRangeArray(result.financial_data.budget_range || {});
                 } else {
                     this.rawFinancialData = { budget: [], boxoffice: [] };
+                    this.rawBudgetRangeData = [];
                 }
                 
                 // Initialize charts after DOM updates
@@ -625,6 +656,34 @@ function lepranApp() {
                 .filter(item => item.count > 0);
         },
         
+        // Convert budget range dict to array format
+        // Expected format: { buckets: [{range, start, end, count}, ...], totalFilmsWithBudget: N }
+        _dictToBudgetRangeArray(dictData) {
+            if (!dictData || typeof dictData !== 'object') return [];
+            if (Array.isArray(dictData.buckets)) {
+                const totalFilms = dictData.totalFilmsWithBudget || 1;
+                return dictData.buckets.map(bucket => ({
+                    range: bucket.range || 'Unknown',
+                    start: bucket.start || 0,
+                    end: bucket.end || 0,
+                    count: bucket.count || 0,
+                    percent: totalFilms > 0 ? ((bucket.count || 0) / totalFilms * 100).toFixed(1) + '%' : '0.0%'
+                }));
+            }
+            return Object.entries(dictData)
+                .filter(([range, count]) => range !== 'buckets' && range !== 'totalFilmsWithBudget' && Number(count) > 0)
+                .map(([range, count]) => {
+                    const match = range.match(/[\$]?([\d,]+)/g);
+                    return {
+                        range: String(range),
+                        start: match ? (match[0] ? parseInt(match[0].replace(/[\$,]/g, '')) || 0 : 0) : 0,
+                        end: match && match[1] ? parseInt(match[1].replace(/[\$,]/g, '')) || 0 : 0,
+                        count: Number(count) || 0,
+                        percent: '0.0%'
+                    };
+                });
+        },
+        
         // Calculate percentage for a count value
         calculatePercent(count) {
             if (!this.stats.filmsCount || this.stats.filmsCount === 0) return '0.00%';
@@ -694,6 +753,10 @@ function lepranApp() {
             this.financialExpanded = !this.financialExpanded;
         },
         
+        toggleBudgetRange() {
+            this.budgetRangeExpanded = !this.budgetRangeExpanded;
+        },
+        
          // Reset to input screen for new analysis
          resetToInput() {
              // Clean up polling interval if still active
@@ -707,6 +770,7 @@ function lepranApp() {
              this.selectedFolderName = '';
              this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
+            this.rawBudgetRangeData = [];
             
             // Destroy charts to free memory
             this.destroyCharts();
@@ -749,20 +813,23 @@ function lepranApp() {
         prepareChartData(data, chartType, limit) {
             const sorted = [...data].sort((a, b) => b.count - a.count);
             
+            // Budget range data uses 'range' property instead of 'name'
+            const getLabel = (item) => (item.range !== undefined ? item.range : item.name);
+            
             if (chartType === 'pie' && sorted.length > limit) {
                 // For pie charts: top N slices + "Other" for the rest
                 const topItems = sorted.slice(0, limit);
                 const otherCount = sorted.slice(limit).reduce((sum, item) => sum + item.count, 0);
                 
                 return {
-                    labels: [...topItems.map(item => item.name), 'Other'],
+                    labels: [...topItems.map(getLabel), 'Other'],
                     counts: [...topItems.map(item => item.count), otherCount]
                 };
             } else {
                 // For bar charts: top 10 items (no "Other" grouping)
                 const items = sorted.slice(0, limit);
                 return {
-                    labels: items.map(item => item.name),
+                    labels: items.map(getLabel),
                     counts: items.map(item => item.count)
                 };
             }
@@ -859,7 +926,8 @@ function lepranApp() {
                 { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' },
                 { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' },
                 { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diaryWeekday' },
-                { id: 'financialChart', data: this.sortedFinancialData, color: '#3fb950', category: 'financial' }
+                { id: 'financialChart', data: this.sortedFinancialData, color: '#3fb950', category: 'financial' },
+                { id: 'budgetRangeChart', data: this.sortedBudgetRangeData, color: '#bc8cff', category: 'budgetRange' }
             ];
             
             chartConfigs.forEach(config => {

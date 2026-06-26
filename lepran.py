@@ -284,9 +284,91 @@ class WebAPI:
         
         return self._build_result()
     
+    @staticmethod
+    def _compute_budget_range_buckets(film_budget_data: dict) -> dict:
+        """Compute budget range buckets from per-film budget data.
+        
+        Films with budget=0 or missing are placed in "Unknown / Not reported".
+        Buckets are sorted by highest budget first (descending order).
+        
+        Args:
+            film_budget_data: Dict mapping film name to budget value
+            
+        Returns:
+            Dict with 'buckets' list and 'totalFilmsWithBudget' count
+        """
+        # Define bucket boundaries (descending: highest first)
+        bucket_defs = [
+            {"label": "$200M+", "min": 200_000_000, "max": None, "range_str": "$200M+"},
+            {"label": "$100–$200M", "min": 100_000_000, "max": 200_000_000, "range_str": "$100–$200M"},
+            {"label": "$50–$100M", "min": 50_000_000, "max": 100_000_000, "range_str": "$50–$100M"},
+            {"label": "$20–$50M", "min": 20_000_000, "max": 50_000_000, "range_str": "$20–$50M"},
+            {"label": "$5–$20M", "min": 5_000_000, "max": 20_000_000, "range_str": "$5–$20M"},
+            {"label": "$1–$5M", "min": 1_000_000, "max": 5_000_000, "range_str": "$1–$5M"},
+            {"label": "$0–$1M", "min": 0, "max": 1_000_000, "range_str": "$0–$1M"},
+        ]
+        
+        # Count films per bucket
+        buckets = []
+        unknown_count = 0
+        total_with_budget = 0
+        
+        for film_name, budget in film_budget_data.items():
+            if budget is None or budget <= 0:
+                unknown_count += 1
+                continue
+            total_with_budget += 1
+            
+            placed = False
+            for bucket in bucket_defs:
+                if bucket["max"] is None:
+                    # Open-ended upper bucket (highest)
+                    if budget >= bucket["min"]:
+                        bucket["count"] = bucket.get("count", 0) + 1
+                        placed = True
+                        break
+                else:
+                    if bucket["min"] <= budget < bucket["max"]:
+                        bucket["count"] = bucket.get("count", 0) + 1
+                        placed = True
+                        break
+            if not placed:
+                # Budget below all buckets, treat as unknown
+                unknown_count += 1
+        
+        # Build bucket list in order (already defined descending)
+        result_buckets = []
+        for bucket in bucket_defs:
+            count = bucket.get("count", 0)
+            if count > 0:
+                percent = (count / total_with_budget * 100) if total_with_budget > 0 else 0.0
+                result_buckets.append({
+                    "range": bucket["range_str"],
+                    "count": count,
+                    "percent": f"{percent:.1f}"
+                })
+        
+        # Add "Unknown / Not reported" last
+        if unknown_count > 0:
+            percent = (unknown_count / (total_with_budget + unknown_count) * 100) if (total_with_budget + unknown_count) > 0 else 0.0
+            result_buckets.append({
+                "range": "Unknown / Not reported",
+                "count": unknown_count,
+                "percent": f"{percent:.1f}"
+            })
+        
+        return {
+            "buckets": result_buckets,
+            "totalFilmsWithBudget": total_with_budget
+        }
+    
     def _build_result(self):
         """Build result dictionary from current stats data."""
         stats = self.app_context.stats_data
+        
+        # Compute budget range buckets
+        budget_data = dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {}
+        budget_range = self._compute_budget_range_buckets(budget_data)
         
         return {
             'success': True,
@@ -309,8 +391,9 @@ class WebAPI:
             },
             # Financial analytics (nested object format for frontend)
             'financial_data': {
-                'budget': dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {},
-                'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {}
+                'budget': budget_data,
+                'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {},
+                'budget_range': budget_range
             }
         }
     
@@ -383,7 +466,8 @@ class WebAPI:
                 # Financial analytics
                 'financial_data': {
                     'budget': dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {},
-                    'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {}
+                    'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {},
+                    'budget_range': self._compute_budget_range_buckets(dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {})
                 }
             }
             

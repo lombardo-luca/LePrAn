@@ -31,6 +31,9 @@ class StatisticsData:
         self.film_budget_data = {}       # {"Film Name": budget_amount, ...}
         self.film_boxoffice_data = {}    # {"Film Name": box_office, ...}
         
+        # Budget range buckets (distribution view)
+        self.budget_range_buckets = {}   # {"buckets": [...], "totalFilmsWithBudget": N}
+        
         # GUI display strings
         self.gui_watched1 = ""
         self.gui_watched2 = ""

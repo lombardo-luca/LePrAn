@@ -87,6 +87,7 @@ class SnapshotExporter:
                 avg_runtime=analytics.get('avg_runtime'),
                 film_budget_ranking=analytics.get('film_budget_ranking', dict(self.stats_data.film_budget_data)),
                 film_boxoffice_ranking=analytics.get('film_boxoffice_ranking', dict(self.stats_data.film_boxoffice_data)),
+                budget_range_buckets=analytics.get('budget_range_buckets', {}),
                 username=analytics.get('username', self.login_input),
                 scraped_at=analytics.get('scraped_at', self.stats_data.gui_scraped_at or datetime.now().strftime("%Y-%m-%d"))
             )
@@ -107,6 +108,7 @@ class SnapshotExporter:
                 year_stats=dict(self.stats_data.diary_year_counts),
                 film_budget_ranking=dict(self.stats_data.film_budget_data),
                 film_boxoffice_ranking=dict(self.stats_data.film_boxoffice_data),
+                budget_range_buckets={},
                 username=self.login_input,
                 scraped_at=self.stats_data.gui_scraped_at or datetime.now().strftime("%Y-%m-%d")
             )

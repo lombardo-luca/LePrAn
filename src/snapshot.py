@@ -98,6 +98,9 @@ class AnalyticsData:
     film_budget_ranking: Dict[str, float] = field(default_factory=dict)  # e.g., {"Film Name": 1000000.0, ...}
     film_boxoffice_ranking: Dict[str, float] = field(default_factory=dict)  # e.g., {"Film Name": 5000000.0, ...}
     
+    # Budget range buckets (distribution view)
+    budget_range_buckets: Dict[str, Any] = field(default_factory=dict)  # e.g., {"buckets": [...], "totalFilmsWithBudget": N}
+    
     # Metadata
     username: str = ""
     scraped_at: str = ""  # YYYY-MM-DD
@@ -221,6 +224,7 @@ class ApplicationSnapshot:
                 'avg_runtime': self.analytics.avg_runtime,
                 'film_budget_ranking': self.analytics.film_budget_ranking,
                 'film_boxoffice_ranking': self.analytics.film_boxoffice_ranking,
+                'budget_range_buckets': self.analytics.budget_range_buckets,
                 'username': self.analytics.username,
                 'scraped_at': self.analytics.scraped_at,
                 'snapshot_version': self.analytics.snapshot_version
@@ -330,6 +334,7 @@ class ApplicationSnapshot:
             avg_runtime=analytics_data.get('avg_runtime'),
             film_budget_ranking=analytics_data.get('film_budget_ranking', {}),
             film_boxoffice_ranking=analytics_data.get('film_boxoffice_ranking', {}),
+            budget_range_buckets=analytics_data.get('budget_range_buckets', {}),
             username=analytics_data.get('username', ''),
             scraped_at=analytics_data.get('scraped_at', ''),
             snapshot_version=analytics_data.get('snapshot_version', SNAPSHOT_SCHEMA_VERSION)
