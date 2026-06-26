@@ -14,7 +14,8 @@ import csv
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +312,106 @@ class FolderScraperCoordinator:
 
         # Deduplication cache: stores (name.lower().strip(), year.strip()) of already-scraped movies
         self._scraped_cache = {}
+        
+        # Film records storage: stores complete film data for export
+        # Key format: "title|year" (normalized)
+        self._film_records: Dict[str, Dict[str, Any]] = {}
+        
+        # Diary entries storage: stores diary-specific metadata
+        # Each entry: {date, title, year, rating, tags, notes, tmdb_id}
+        self._diary_entries: list = []
+        
+        # Watched entries storage
+        # Each entry: {title, year, date}
+        self._watched_entries: list = []
+        
+        # Raw CSV content storage
+        self._raw_watched_csv: str = ""
+        self._raw_diary_csv: str = ""
+        self._raw_watchlist_csv: str = ""
+        
+        # Watchlist data storage
+        self._watchlist_data: list = []
+    
+    def set_raw_csv_content(self, watched: str = "", diary: str = "", watchlist: str = ""):
+        """Set raw CSV content for snapshot preservation.
+        
+        Args:
+            watched: Raw watched.csv content
+            diary: Raw diary.csv content
+            watchlist: Raw watchlist.csv content
+        """
+        self._raw_watched_csv = watched
+        self._raw_diary_csv = diary
+        self._raw_watchlist_csv = watchlist
+    
+    def get_film_records(self) -> Dict[str, Dict[str, Any]]:
+        """Get all stored film records.
+        
+        Returns:
+            Dictionary keyed by "title|year" with film data values.
+        """
+        return dict(self._film_records)
+    
+    def get_diary_entries(self) -> list:
+        """Get all stored diary entries.
+        
+        Returns:
+            List of diary entry dicts.
+        """
+        return list(self._diary_entries)
+    
+    def get_watched_entries(self) -> list:
+        """Get all stored watched entries.
+        
+        Returns:
+            List of watched entry dicts.
+        """
+        return list(self._watched_entries)
+    
+    def get_raw_csv_content(self) -> tuple:
+        """Get raw CSV content.
+        
+        Returns:
+            Tuple of (watched_csv, diary_csv, watchlist_csv) strings.
+        """
+        return (self._raw_watched_csv, self._raw_diary_csv, self._raw_watchlist_csv)
 
+    def _load_raw_csv_content(self, folder_path: str):
+        """Load raw CSV content from the folder for snapshot preservation.
+        
+        Args:
+            folder_path: Path to the folder containing CSV files.
+        """
+        folder = Path(folder_path)
+        
+        # Load watched.csv
+        watched_path = folder / 'watched.csv'
+        if watched_path.exists():
+            try:
+                with open(watched_path, 'r', encoding='utf-8-sig') as f:
+                    self._raw_watched_csv = f.read()
+            except IOError as e:
+                logger.warning(f"Failed to read raw watched.csv: {e}")
+        
+        # Load diary.csv
+        diary_path = folder / 'diary.csv'
+        if diary_path.exists():
+            try:
+                with open(diary_path, 'r', encoding='utf-8-sig') as f:
+                    self._raw_diary_csv = f.read()
+            except IOError as e:
+                logger.warning(f"Failed to read raw diary.csv: {e}")
+        
+        # Load watchlist.csv if present
+        watchlist_path = folder / 'watchlist.csv'
+        if watchlist_path.exists():
+            try:
+                with open(watchlist_path, 'r', encoding='utf-8-sig') as f:
+                    self._raw_watchlist_csv = f.read()
+            except IOError as e:
+                logger.warning(f"Failed to read raw watchlist.csv: {e}")
+    
     def scrape_folder(self, folder_path: str, progress_callback=None) -> dict:
         """Scrape all films from a validated folder.
 
@@ -351,6 +451,9 @@ class FolderScraperCoordinator:
         # Load folder data
         logger.info(f"Loading folder: {folder_path}")
         folder_data = self.data_loader.load_folder(folder_path)
+        
+        # Load raw CSV content for snapshot preservation
+        self._load_raw_csv_content(folder_path)
 
         # Reset data
         self.app_context.stats_data.reset()
@@ -361,6 +464,11 @@ class FolderScraperCoordinator:
 
         # Reset deduplication cache
         self._scraped_cache = {}
+        
+        # Reset film records and entries storage
+        self._film_records = {}
+        self._diary_entries = []
+        self._watched_entries = []
 
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)
         diary_entries = folder_data['diary']
@@ -402,6 +510,16 @@ class FolderScraperCoordinator:
         if len(watched_new_films) > 0:
             watched_batch_start = time_module.time()
             self._process_films(watched_new_films, 'watched', start_time=watched_batch_start)
+
+        # Store diary entries from diary.csv data
+        self._store_diary_entries(diary_entries)
+        
+        # Store watched entries from watched.csv data
+        self._store_watched_entries(watched_entries)
+        
+        # Store watchlist data from watchlist.csv if available
+        if folder_data['watchlist']:
+            self._store_watchlist_data(folder_data['watchlist'])
 
         # Transfer aggregated data to app context
         self._transfer_aggregated_data()
@@ -519,6 +637,64 @@ class FolderScraperCoordinator:
             if film_data['runtime'] > 0:
                 stats_dict['runtimes'].append(film_data['runtime'])
 
+            # Store film record for snapshot export
+            film_key = f"{name}|{year}"
+            if film_key not in self._film_records:
+                self._film_records[film_key] = {
+                    'title': name,
+                    'year': year,
+                    'tmdb_id': film_data.get('tmdb_id'),
+                    'languages': film_data.get('languages', []),
+                    'countries': film_data.get('countries', []),
+                    'genres': film_data.get('genres', []),
+                    'directors': film_data.get('directors', []),
+                    'actors': film_data.get('actors', []),
+                    'decade': film_data.get('decade'),
+                    'runtime': film_data.get('runtime', 0),
+                    'budget': film_data.get('budget'),
+                    'box_office': film_data.get('box_office'),
+                    'overview': film_data.get('overview', ''),
+                    'poster_path': film_data.get('poster_path', ''),
+                    'in_watchlist': False,
+                    'added_to_watchlist_date': None,
+                    'times_watched': 0,
+                    'average_rating': None
+                }
+            else:
+                # Update existing record with additional data
+                existing = self._film_records[film_key]
+                # Merge languages
+                for lang in film_data.get('languages', []):
+                    if lang not in existing['languages']:
+                        existing['languages'].append(lang)
+                # Merge countries
+                for country in film_data.get('countries', []):
+                    if country not in existing['countries']:
+                        existing['countries'].append(country)
+                # Merge genres
+                for genre in film_data.get('genres', []):
+                    if genre not in existing['genres']:
+                        existing['genres'].append(genre)
+                # Merge directors
+                for director in film_data.get('directors', []):
+                    if director not in existing['directors']:
+                        existing['directors'].append(director)
+                # Merge actors
+                for actor in film_data.get('actors', []):
+                    if actor not in existing['actors']:
+                        existing['actors'].append(actor)
+                # Update tmdb_id if not set
+                if not existing['tmdb_id'] and film_data.get('tmdb_id'):
+                    existing['tmdb_id'] = film_data.get('tmdb_id')
+                # Update runtime if better data
+                if film_data.get('runtime', 0) > existing['runtime']:
+                    existing['runtime'] = film_data.get('runtime', 0)
+                # Update budget/box_office if available
+                if film_data.get('budget') is not None and existing['budget'] is None:
+                    existing['budget'] = film_data.get('budget')
+                if film_data.get('box_office') is not None and existing['box_office'] is None:
+                    existing['box_office'] = film_data.get('box_office')
+
             # --- Fix 1 & 2: Isolated progress with full metrics ---
             batch_processed += 1
             if total > 0 and self.scraper.progress_callback:
@@ -634,6 +810,69 @@ class FolderScraperCoordinator:
         stats.total_hours = hrs
         stats.total_days = dys
 
+    def _store_diary_entries(self, diary_entries: list):
+        """Store diary entries with metadata from diary.csv data.
+        
+        Args:
+            diary_entries: List of (date, name, year, uri) tuples from diary.csv
+        """
+        for date, name, year, uri in diary_entries:
+            # Try to find matching film record for additional metadata
+            film_key = f"{name}|{year}"
+            tmdb_id = None
+            if film_key in self._film_records:
+                tmdb_id = self._film_records[film_key].get('tmdb_id')
+            
+            entry = {
+                'date': date,
+                'title': name,
+                'year': year,
+                'rating': None,  # Will be populated from ratings.csv if available
+                'tags': [],
+                'notes': '',
+                'tmdb_id': tmdb_id
+            }
+            self._diary_entries.append(entry)
+    
+    def _store_watched_entries(self, watched_entries: list):
+        """Store watched entries from watched.csv data.
+        
+        Args:
+            watched_entries: List of (date, name, year, uri) tuples from watched.csv
+        """
+        for date, name, year, uri in watched_entries:
+            entry = {
+                'title': name,
+                'year': year,
+                'date': date
+            }
+            self._watched_entries.append(entry)
+    
+    def _store_watchlist_data(self, watchlist_entries: list):
+        """Store watchlist data from watchlist.csv if available.
+        
+        Args:
+            watchlist_entries: List of (date, name, year, uri) tuples from watchlist.csv
+        """
+        if not watchlist_entries:
+            return
+        
+        self._watchlist_data = []
+        for date, name, year, uri in watchlist_entries:
+            entry = {
+                'title': name,
+                'year': year,
+                'date': date,
+                'uri': uri
+            }
+            self._watchlist_data.append(entry)
+            
+            # Update film record with watchlist status
+            film_key = f"{name}|{year}"
+            if film_key in self._film_records:
+                self._film_records[film_key]['in_watchlist'] = True
+                self._film_records[film_key]['added_to_watchlist_date'] = date
+    
     @property
     def parser(self):
         """Get the CSV file parser."""

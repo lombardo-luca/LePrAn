@@ -22,6 +22,9 @@ from src.context import AppContext
 from src.scraper_tmdb import TMDbScraper
 from src.data_manager import DataManager
 from src.folder_import import FolderScraperCoordinator, ImportValidationError
+from src.snapshot import ApplicationSnapshot
+from src.snapshot_export import SnapshotExporter
+from src.snapshot_import import SnapshotImporter, SnapshotImportError
 from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 
 # Configure logging
@@ -155,6 +158,10 @@ class WebAPI:
                 try:
                     coordinator = FolderScraperCoordinator(scraper_with_callback, self.app_context)
                     coordinator.scrape_folder(folder_path, progress_callback=self._update_progress)
+                    
+                    # Store coordinator reference for snapshot export
+                    self._coordinator = coordinator
+                    
                     self.data_manager.generate_gui_strings(self.app_context.stats_data.films_count)
                     self._analysis_result = self._build_result()
                 except ImportValidationError as e:
@@ -250,8 +257,12 @@ class WebAPI:
             'decades': json.dumps(dict(stats.decade_dict))
         }
     
-    def load_saved_csv(self):
-        """Open file dialog and load a saved LePrAn CSV file."""
+    def load_snapshot(self):
+        """Open file dialog and load a saved LePrAn JSON snapshot.
+        
+        Returns:
+            dict with 'success', 'result' on success, or 'error' on failure.
+        """
         try:
             import tkinter as tk
             from tkinter import filedialog
@@ -259,13 +270,13 @@ class WebAPI:
             root = tk.Tk()
             root.withdraw()
             file_path = filedialog.askopenfilename(
-                title="Open LePrAn Saved CSV",
-                filetypes=[("CSV Files", "*.csv")],
+                title="Open LePrAn Application Snapshot",
+                filetypes=[("JSON Files", "*.json")],
                 initialdir=os.path.abspath('.')
             )
             root.destroy()
             
-            logger.info(f"load_saved_csv: selected file_path={file_path}")
+            logger.info(f"load_snapshot: selected file_path={file_path}")
             
             if not file_path:
                 return {'success': False, 'error': 'No file selected'}
@@ -274,58 +285,71 @@ class WebAPI:
             self.app_context.stats_data.reset()
             self.app_context.gui_models.clear_all()
             
-            # Load stats from CSV
-            meta = self.data_manager.load_stats_from_csv(file_path)
+            # Create importer and import
+            from src.snapshot_import import SnapshotImporter, SnapshotImportError
+            importer = SnapshotImporter(
+                self.app_context.stats_data,
+                self.app_context.gui_models
+            )
             
-            logger.info(f"load_saved_csv: meta loaded - films_num={getattr(meta, 'films_num', 'N/A')}, total_hours={getattr(meta, 'total_hours', 'N/A')}, total_days={getattr(meta, 'total_days', 'N/A')}")
+            result = importer.import_from_file(file_path, rebuild_from_films=True)
             
-            if not meta:
-                return {'success': False, 'error': 'Failed to load CSV data'}
-            
-            # Extract username
-            self.login_input = meta.username if meta.username else os.path.splitext(os.path.basename(file_path))[0]
+            # Extract username from result or filename
+            self.login_input = result.get('username', os.path.splitext(os.path.basename(file_path))[0])
             
             # Generate GUI strings
-            self.data_manager.generate_gui_strings(meta.films_num)
+            self.data_manager.generate_gui_strings(self.app_context.stats_data.films_count)
             
-            # Build result with loaded data
+            # Build analytics dict for frontend consumption
             stats = self.app_context.stats_data
-            logger.info(f"load_saved_csv: stats.total_hours={stats.total_hours}, stats.films_count={stats.films_count}")
-            result = {
-                'success': True,
+            analytics_result = {
                 'username': self.login_input,
-                'films_count': meta.films_num,
-                'total_hours': meta.total_hours,
-                'total_days': meta.total_days,
-                'scraped_at': meta.scraped_at or __import__('time').strftime("%d/%m/%Y", __import__('time').localtime()),
-                'countries': json.dumps(stats.country_dict),
-                'languages': json.dumps(stats.lang_dict),
-                'genres': json.dumps(stats.genre_dict),
-                'directors': json.dumps(stats.director_dict),
-                'actors': json.dumps(stats.actor_dict),
-                'decades': json.dumps(dict(stats.decade_dict))
+                'films_count': stats.films_count,
+                'total_hours': stats.total_hours,
+                'total_days': stats.total_days,
+                'scraped_at': stats.gui_scraped_at or '',
+                'country_stats': dict(stats.country_dict),
+                'language_stats': dict(stats.lang_dict),
+                'genre_stats': dict(stats.genre_dict),
+                'director_stats': dict(stats.director_dict),
+                'actor_stats': dict(stats.actor_dict),
+                'decade_stats': dict(stats.decade_dict),
+                'weekday_stats': {},
+                'rating_stats': {},
+                'tag_stats': {}
             }
             
-            logger.info(f"load_saved_csv: returning result with total_hours={result['total_hours']}")
-            return result
+            # Merge restoration metadata into analytics result
+            for k, v in result.items():
+                if k not in analytics_result:
+                    analytics_result[k] = v
             
+            logger.info(f"Snapshot loaded from {file_path}: {analytics_result}")
+            return {'success': True, 'result': analytics_result}
+                
         except Exception as e:
-            logger.error(f"Error loading CSV: {e}")
+            logger.error(f"Error loading snapshot: {e}")
             return {'success': False, 'error': str(e)}
     
-    def save_results(self, data):
-        """Save results to a CSV file."""
+    def save_snapshot(self, data):
+        """Save complete application state as a JSON snapshot.
+        
+        Args:
+            data: dict with keys: username, films_count, total_hours, scraped_at,
+                  countries, languages, genres, directors, actors, decades
+        """
         try:
             import tkinter as tk
             from tkinter import filedialog
+            import time
             
             root = tk.Tk()
             root.withdraw()
-            default_name = f"{data.get('username', 'results')}.csv"
+            default_name = f"{data.get('username', 'results')}_snapshot.json"
             file_path = filedialog.asksaveasfilename(
-                title="Save Statistics CSV",
-                defaultextension=".csv",
-                filetypes=[("CSV Files", "*.csv")],
+                title="Save Application Snapshot",
+                defaultextension=".json",
+                filetypes=[("JSON Files", "*.json")],
                 initialfile=default_name,
                 initialdir=os.path.abspath('.')
             )
@@ -363,23 +387,60 @@ class WebAPI:
             stats.decade_dict.clear()
             stats.decade_dict.update(decades)
             
-            # Save to CSV using data manager
-            success = self.data_manager.save_stats_to_csv(
-                username=data.get('username', 'user'),
-                scraped_at=data.get('scraped_at', __import__('time').strftime("%d/%m/%Y", __import__('time').localtime())),
-                films_num=data.get('films_count', 0),
-                total_hours=data.get('total_hours', 0.0),
-                total_days=data.get('total_days', 0.0),
-                csv_path=file_path
+            # Build analytics dict
+            analytics = {
+                'total_films': data.get('films_count', 0),
+                'total_hours': data.get('total_hours', 0.0),
+                'total_days': data.get('total_days', 0.0),
+                'country_stats': countries,
+                'language_stats': languages,
+                'genre_stats': genres,
+                'director_stats': directors,
+                'actor_stats': actors,
+                'decade_stats': decades,
+                'weekday_stats': {},
+                'rating_stats': {},
+                'tag_stats': {},
+                'username': data.get('username', ''),
+                'scraped_at': data.get('scraped_at', time.strftime("%d/%m/%Y", time.localtime()))
+            }
+            
+            # Get film records, diary entries, and raw CSV content from coordinator
+            if hasattr(self, '_coordinator') and self._coordinator:
+                films = self._coordinator.get_film_records()
+                diary_entries = self._coordinator.get_diary_entries()
+                watched_entries = self._coordinator.get_watched_entries()
+                raw_watched, raw_diary, raw_watchlist = self._coordinator.get_raw_csv_content()
+                watchlist_data = self._coordinator._watchlist_data  # Get watchlist data if available
+            else:
+                films = {}
+                diary_entries = []
+                watched_entries = []
+                raw_watched = raw_diary = raw_watchlist = ""
+                watchlist_data = None
+            
+            # Create exporter and export
+            exporter = SnapshotExporter(self.app_context.stats_data, data.get('username', ''))
+            success = exporter.export_stats_to_file(
+                output_path=file_path,
+                films=films,
+                diary_entries=diary_entries,
+                watched_entries=watched_entries,
+                watchlist_data=watchlist_data,
+                raw_watched_csv=raw_watched,
+                raw_diary_csv=raw_diary,
+                raw_watchlist_csv=raw_watchlist,
+                analytics=analytics
             )
             
             if success:
-                return {'success': True}
+                logger.info(f"Snapshot saved to {file_path}")
+                return {'success': True, 'file_path': file_path}
             else:
-                return {'success': False, 'error': 'Failed to save CSV'}
+                return {'success': False, 'error': 'Failed to save snapshot'}
                 
         except Exception as e:
-            logger.error(f"Error saving results: {e}")
+            logger.error(f"Error saving snapshot: {e}")
             return {'success': False, 'error': str(e)}
 
 

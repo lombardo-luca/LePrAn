@@ -315,23 +315,63 @@ function lepranApp() {
             }, 500);
         },
         
-        // Load saved LePrAn CSV data
-        async loadSavedCSV() {
+        // Load saved LePrAn snapshot data (JSON format)
+        async loadSavedSnapshot() {
+            // Confirm with user before overwriting data
+            if (!confirm('Loading a snapshot will overwrite all current data. Continue?')) {
+                return;
+            }
+            
             this.isAnalyzing = true;
             this.progressPercent = 0;
-            this.analysisProgress = 'Loading saved data...';
+            this.analysisProgress = 'Loading snapshot...';
             
             try {
                 if (window.pywebview && window.pywebview.api) {
-                    // Open file dialog in Python and load the CSV
-                    const result = await window.pywebview.api.load_saved_csv();
-                    this.onAnalysisComplete(result);
+                    // Open file dialog in Python and load the JSON snapshot
+                    const result = await window.pywebview.api.load_snapshot();
+                    this.isAnalyzing = false;
+                    this.progressPercent = 0;
+                    this.analysisProgress = '';
+                    
+                    if (result && result.success) {
+                        const r = result.result || {};
+                        
+                        // Update stats display from imported data
+                        this.stats = {
+                            username: r.username || this.stats.username || 'Imported',
+                            filmsCount: r.films_count || this.stats.filmsCount || 0,
+                            totalRuntime: this.formatRuntime(r.total_hours || this.stats.totalHours || 0),
+                            totalHours: r.total_hours || this.stats.totalHours || 0,
+                            scrapedAt: r.scraped_at || this.stats.scrapedAt || 'Imported'
+                        };
+                        
+                        // Update category data from imported analytics (top-level in result)
+                        this.rawData.countries = this.parseDictResult(JSON.stringify(r.country_stats || {}));
+                        this.rawData.languages = this.parseDictResult(JSON.stringify(r.language_stats || {}));
+                        this.rawData.genres = this.parseDictResult(JSON.stringify(r.genre_stats || {}));
+                        this.rawData.directors = this.parseDictResult(JSON.stringify(r.director_stats || {}));
+                        this.rawData.actors = this.parseDictResult(JSON.stringify(r.actor_stats || {}));
+                        this.rawData.decades = this.parseDictResult(JSON.stringify(r.decade_stats || {}));
+                        
+                        // Initialize charts after DOM updates
+                        this.$nextTick(() => {
+                            this.initCharts();
+                        });
+                        
+                        this.hasResults = true;
+                    } else {
+                        alert('Failed to load snapshot: ' + (result?.error || 'Unknown error'));
+                    }
                 } else {
                     // Demo mode - use a sample file picker
                     this.simulateLoadCSV();
                 }
             } catch (error) {
-                this.onAnalysisError(error.message || 'Failed to load CSV');
+                this.isAnalyzing = false;
+                this.progressPercent = 0;
+                this.analysisProgress = '';
+                this.onAnalysisError(error.message || 'Failed to load snapshot');
             }
         },
         
@@ -499,13 +539,13 @@ function lepranApp() {
             this.destroyCharts();
         },
         
-        // Save results to CSV
+        // Save complete application state as JSON snapshot
         async saveResults() {
             if (!this.hasResults) return;
             
             try {
                 if (window.pywebview && window.pywebview.api) {
-                    const result = await window.pywebview.api.save_results({
+                    const result = await window.pywebview.api.save_snapshot({
                         username: this.stats.username,
                         films_count: this.stats.filmsCount,
                         total_hours: this.stats.totalHours,
@@ -519,16 +559,16 @@ function lepranApp() {
                     });
                     
                     if (result && result.success) {
-                        alert('Results saved successfully!');
+                        alert('Snapshot saved successfully to:\n' + result.file_path);
                     } else {
-                        alert('Failed to save results: ' + (result?.error || 'Unknown error'));
+                        alert('Failed to save snapshot: ' + (result?.error || 'Unknown error'));
                     }
                 } else {
                     // Demo mode - download as JSON
                     this.downloadDemoSave();
                 }
             } catch (error) {
-                alert('Error saving results: ' + (error.message || 'Unknown error'));
+                alert('Error saving snapshot: ' + (error.message || 'Unknown error'));
             }
         },
         
@@ -927,7 +967,17 @@ function lepranApp() {
             a.download = `${this.stats.username}_lepran_results.json`;
             a.click();
             URL.revokeObjectURL(url);
-        }
+        },
+        
+        // Helper to get country dictionary from imported data (for snapshot import)
+        _getCountryDict() {
+            // Try to extract from analytics if available
+            return {};
+        },
+        _getLangDict() { return {}; },
+        _getGenreDict() { return {}; },
+        _getDirectorDict() { return {}; },
+        _getActorDict() { return {}; }
     };
 }
 
