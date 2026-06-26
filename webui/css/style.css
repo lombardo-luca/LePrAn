@@ -599,10 +599,30 @@ body {
     position: relative;
 }
 
-/* --- Finance Table - ensure budget/box office column fits on one line --- */
+/* --- Finance Table - Column Width Balancing --- */
+.finance-table th:nth-child(1),
+.finance-table td:nth-child(1) {
+    width: 50px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.finance-table th:nth-child(2),
+.finance-table td:nth-child(2) {
+    min-width: 200px;
+    width: auto;
+}
+
 .finance-table th:nth-child(3),
 .finance-table td:nth-child(3) {
     min-width: 150px;
+}
+
+.finance-table th:nth-child(4),
+.finance-table td:nth-child(4) {
+    width: 70px;
+    min-width: 70px;
+    text-align: right;
 }
 
 /* --- Chart Type Toggle --- */
