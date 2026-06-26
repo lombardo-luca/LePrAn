@@ -4,7 +4,6 @@ Manages statistics data and GUI models.
 """
 import threading
 from collections import defaultdict
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
 
 
 class StatisticsData:
@@ -93,49 +92,48 @@ class StatisticsData:
 
 
 class GUIModels:
-    """Manages Qt models for displaying statistics in tables."""
+    """Manages data models for displaying statistics.
+    
+    Uses plain Python dicts (compatible with WebUI JSON consumption).
+    Previously used Qt models; now stores sorted list-of-dicts for
+    each category, matching the old table structure:
+        [{'name': str, 'count': int, 'percent': str}, ...]
+    """
     
     def __init__(self):
         self.models = {
-            'countries': QStandardItemModel(0, 3),
-            'languages': QStandardItemModel(0, 3),
-            'genres': QStandardItemModel(0, 3),
-            'directors': QStandardItemModel(0, 3),
-            'actors': QStandardItemModel(0, 3)
+            'countries': [],
+            'languages': [],
+            'genres': [],
+            'directors': [],
+            'actors': []
         }
-        
-        # Set headers
-        headers = ['Name', 'Films', 'Percentage']
-        for model in self.models.values():
-            model.setHorizontalHeaderLabels(headers)
     
     def clear_all(self):
         """Clear all models."""
-        for model in self.models.values():
-            model.removeRows(0, model.rowCount())
+        for name in self.models:
+            self.models[name] = []
     
     def populate_model(self, model_name, data_dict, films_count, limit=None):
         """Populate a specific model with sorted data."""
         if model_name not in self.models:
             return
         
-        model = self.models[model_name]
-        model.removeRows(0, model.rowCount())
-        
         sorted_data = dict(sorted(data_dict.items(), key=lambda x: x[1], reverse=True))
         
-        count = 0
+        rows = []
         for name, count_value in sorted_data.items():
-            if limit and count >= limit:
+            if limit and len(rows) >= limit:
                 break
             
-            percent = (format(count_value / films_count * 100, ".2f") + "%") if films_count else "0.00%"
-            model.appendRow([
-                QStandardItem(name),
-                QStandardItem(str(count_value)),
-                QStandardItem(percent)
-            ])
-            count += 1
+            percent = f"{count_value / films_count * 100:.2f}%" if films_count else "0.00%"
+            rows.append({
+                'name': name,
+                'count': count_value,
+                'percent': percent
+            })
+        
+        self.models[model_name] = rows
     
     def get_model(self, name):
         """Get a specific model by name."""

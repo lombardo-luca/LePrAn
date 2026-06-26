@@ -25,7 +25,6 @@ from src.folder_import import FolderScraperCoordinator, ImportValidationError
 from src.snapshot import ApplicationSnapshot
 from src.snapshot_export import SnapshotExporter
 from src.snapshot_import import SnapshotImporter, SnapshotImportError
-from gui.gui_settings import Ui_Dialog as Ui_Dialog_Settings
 
 # Configure logging
 logging.basicConfig(
