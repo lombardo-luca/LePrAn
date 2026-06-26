@@ -61,7 +61,6 @@ class WebAPI:
         self._analysis_running = False
         self._analysis_result = None
         self._analysis_error = None
-        self._analysis_complete = threading.Event()
         
         # Detailed progress stats
         self._films_processed = 0
@@ -193,7 +192,6 @@ class WebAPI:
             self._analysis_running = True
             self._analysis_result = None
             self._analysis_error = None
-            self._analysis_complete.clear()
             
             # Create scraper with progress callback
             scraper_with_callback = TMDbScraper(self.app_context, progress_callback=self._update_progress)
@@ -222,7 +220,6 @@ class WebAPI:
                     self._analysis_error = str(e)
                 finally:
                     self._analysis_running = False
-                    self._analysis_complete.set()
             
             # Start analysis in background thread - return immediately
             thread = threading.Thread(target=run_analysis, daemon=True)
@@ -234,7 +231,6 @@ class WebAPI:
         except Exception as e:
             logger.error(f"Error analyzing folder: {e}")
             self._analysis_running = False
-            self._analysis_complete.set()
             return {'success': False, 'error': str(e)}
     
     def get_analysis_progress(self):

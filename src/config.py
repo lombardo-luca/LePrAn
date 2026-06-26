@@ -15,7 +15,6 @@ class Config:
     """Configuration management class."""
     
     def __init__(self):
-        self.max_threads = 20
         self.list_delim = 200
         self.scraper_profile = "tmdb"  # Only TMDB API is now supported
         self.tmdb_access_token = ""
@@ -70,13 +69,11 @@ class Config:
                         line = line.strip()
                         if ':' in line:
                             key, value = line.split(':', 1)
-                            if key == 'workerThreadsNumber':
-                                self.max_threads = int(value)
-                            elif key == 'scraperProfile':
+                            if key == 'scraperProfile':
                                 # scraperProfile key is kept for backward compatibility but only "tmdb" is valid
                                 self.scraper_profile = "tmdb"
                 logger.info("Config file loaded.")
-                logger.debug(f"Config loaded: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")
+                logger.debug(f"Config loaded: scraper_profile={self.scraper_profile}")
             except (IOError, ValueError) as e:
                 logger.warning(f"Error reading config: {e}")
             except Exception as e:
@@ -89,7 +86,6 @@ class Config:
         try:
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, 'w') as f:
-                f.write("workerThreadsNumber:20\n")
                 f.write("scraperProfile:tmdb\n")
             logger.info("Config file created with TMDB API as default.")
         except IOError as e:
@@ -102,10 +98,9 @@ class Config:
         try:
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, 'w') as f:
-                f.write(f"workerThreadsNumber:{self.max_threads}\n")
                 f.write(f"scraperProfile:{self.scraper_profile}\n")
             logger.info("Config saved.")
-            logger.debug(f"Config saved: max_threads={self.max_threads}, scraper_profile={self.scraper_profile}")
+            logger.debug(f"Config saved: scraper_profile={self.scraper_profile}")
         except IOError as e:
             logger.error(f"Error saving config: {e}")
         except Exception as e:

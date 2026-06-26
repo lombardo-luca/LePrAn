@@ -40,7 +40,7 @@ class TMDbScraper:
         })
         
         # Performance tuning
-        self.batch_delay = 0.5  # small delay between batches to stay under rate limits
+        self.batch_delay = 0.2  # small delay between batches to stay under rate limits
         
         # In-memory data aggregation
         self.stats_aggregator = {

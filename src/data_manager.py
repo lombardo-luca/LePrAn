@@ -190,10 +190,10 @@ class GUIStringGenerator:
     def generate_all_strings(self, films_num: int) -> None:
         """Generate all GUI display strings from current statistics."""
         try:
-            with self.stats_data.lock:
-                self._generate_summary_strings(films_num)
-                self._generate_language_strings(films_num)
-                self._generate_country_strings(films_num)
+            # No lock needed - pipeline is sequential (no multi-threading)
+            self._generate_summary_strings(films_num)
+            self._generate_language_strings(films_num)
+            self._generate_country_strings(films_num)
                 
             logger.debug(f"Generated GUI strings for {films_num} films")
         except Exception as e:
