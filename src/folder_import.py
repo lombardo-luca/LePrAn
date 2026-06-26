@@ -732,7 +732,7 @@ class FolderScraperCoordinator:
                         seconds = int(eta_seconds % 60)
                         eta_str = f"{minutes}m{seconds}s"
 
-                    status = f"Processing {source} films ({batch_processed}/{total}) | {speed:.1f} films/s | ETA: {eta_str}"
+                    status = f"Processing {source} films ({batch_processed}/{total})..."
                 else:
                     status = f"Processing {source} films ({batch_processed}/{total})"
 
