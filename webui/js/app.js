@@ -399,11 +399,6 @@ function lepranApp() {
         
         // Load saved LePrAn snapshot data (JSON format)
         async loadSavedSnapshot() {
-            // Confirm with user before overwriting data
-            if (!confirm('Loading a snapshot will overwrite all current data. Continue?')) {
-                return;
-            }
-            
             this.isAnalyzing = true;
             this.progressPercent = 0;
             this.analysisProgress = 'Loading snapshot...';
