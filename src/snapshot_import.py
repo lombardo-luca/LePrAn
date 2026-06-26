@@ -163,8 +163,8 @@ class SnapshotImporter:
                 self.stats_data.diary_weekday_counts[weekday] = \
                     self.stats_data.diary_weekday_counts.get(weekday, 0) + 1
                 
-                # Month key: YYYY-MM
-                month_key = dt.strftime("%Y-%m")
+                # Month key: month name (year-independent, e.g., "January")
+                month_key = dt.strftime("%B")
                 self.stats_data.diary_month_counts[month_key] = \
                     self.stats_data.diary_month_counts.get(month_key, 0) + 1
             except (ValueError, AttributeError):

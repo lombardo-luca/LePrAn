@@ -27,7 +27,7 @@ class StatisticsData:
             
             # Diary analytics (multi-mode aggregation)
             self.diary_weekday_counts = {}   # {"Monday": 120, "Tuesday": 110, ...}
-            self.diary_month_counts = {}     # {"2024-01": 45, "2024-02": 38, ...}
+            self.diary_month_counts = {}     # {"January": 75, "February": 60, ...} (year-independent, exactly 12 keys)
             self.diary_year_counts = {}      # {"2024": 200, "2023": 180, ...}
             
             # Financial analytics (per-film ranking)

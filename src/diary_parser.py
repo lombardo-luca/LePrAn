@@ -138,18 +138,20 @@ def aggregate_by_weekday(entries: list[DiaryEntry]) -> dict[str, int]:
 
 
 def aggregate_by_month(entries: list[DiaryEntry]) -> dict[str, int]:
-    """Aggregate watch count by year-month.
+    """Aggregate watch count by month name (year-independent).
 
     Args:
         entries: List of DiaryEntry objects.
 
     Returns:
-        Dictionary mapping "YYYY-MM" string to count.
+        Dictionary mapping month name (e.g., "January") to count.
+        Always returns exactly 12 keys if entries exist.
     """
     result: dict[str, int] = {}
     for entry in entries:
-        month_key = f"{entry.watched_year:04d}-{entry.watched_month:02d}"
-        result[month_key] = result.get(month_key, 0) + 1
+        # Use month name instead of year-month combination
+        month_name = datetime(entry.watched_year, entry.watched_month, 1).strftime("%B")
+        result[month_name] = result.get(month_name, 0) + 1
     return result
 
 

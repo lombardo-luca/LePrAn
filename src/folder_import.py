@@ -830,7 +830,7 @@ class FolderScraperCoordinator:
         
         Uses the stored diary entries and film records to compute:
         - diary_weekday_counts: entries grouped by weekday name
-        - diary_month_counts: entries grouped by YYYY-MM
+        - diary_month_counts: entries grouped by month name (e.g., "January") - year-independent, exactly 12 keys
         - diary_year_counts: entries grouped by YYYY
         - film_budget_data: per-film budget values for ranking
         - film_boxoffice_data: per-film box office values for ranking
@@ -865,8 +865,8 @@ class FolderScraperCoordinator:
                     # Count by weekday
                     weekday_counts[weekday_name] = weekday_counts.get(weekday_name, 0) + 1
                     
-                    # Count by month (YYYY-MM)
-                    month_key = f"{year_str}-{month_str}"
+                    # Count by month name (year-independent, e.g., "January")
+                    month_key = date_obj.strftime('%B')
                     month_counts[month_key] = month_counts.get(month_key, 0) + 1
                     
                     # Count by year (YYYY)

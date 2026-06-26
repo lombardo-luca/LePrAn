@@ -83,7 +83,7 @@ class AnalyticsData:
     
     # Diary-specific statistics
     weekday_stats: Dict[str, int] = field(default_factory=dict)  # e.g., {"Monday": 5, "Tuesday": 3, ...}
-    month_stats: Dict[str, int] = field(default_factory=dict)     # e.g., {"2024-01": 10, "2024-02": 8, ...}
+    month_stats: Dict[str, int] = field(default_factory=dict)     # e.g., {"January": 75, "February": 60, ...} (year-independent, exactly 12 keys)
     year_stats: Dict[str, int] = field(default_factory=dict)      # e.g., {"2024": 50, "2023": 45, ...}
     rating_stats: Dict[str, int] = field(default_factory=dict)  # e.g., {"5": 10, "4": 5, ...}
     tag_stats: Dict[str, int] = field(default_factory=dict)
