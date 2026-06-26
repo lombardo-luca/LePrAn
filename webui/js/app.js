@@ -43,12 +43,14 @@ function lepranApp() {
          DISPLAY_LIMIT: 100,
          
          // Category expansion states (each category can be expanded to show all entries)
-         countriesExpanded: false,
-         languagesExpanded: false,
-         genresExpanded: false,
-         directorsExpanded: false,
-         actorsExpanded: false,
-         decadesExpanded: false,
+          countriesExpanded: false,
+          languagesExpanded: false,
+          genresExpanded: false,
+          directorsExpanded: false,
+          actorsExpanded: false,
+          decadesExpanded: false,
+          diaryExpanded: false,
+          financialExpanded: false,
          
           // Raw category data from backend
           rawData: {
@@ -126,15 +128,25 @@ function lepranApp() {
           },
           
           // Computed: sorted diary data based on current aggregation mode
+          // Limited to DISPLAY_LIMIT entries unless diaryExpanded is true
           get sortedDiaryData() {
-              const data = this.rawDiaryData[this.diaryAggregationMode] || [];
-              return [...data].sort((a, b) => b.count - a.count);
+              let data = this.rawDiaryData[this.diaryAggregationMode] || [];
+              data = [...data].sort((a, b) => b.count - a.count);
+              if (!this.diaryExpanded) {
+                  data = data.slice(0, this.DISPLAY_LIMIT);
+              }
+              return data;
           },
           
           // Computed: sorted financial data based on current view mode
+          // Limited to DISPLAY_LIMIT entries unless financialExpanded is true
           get sortedFinancialData() {
-              const data = this.rawFinancialData[this.financialViewMode] || [];
-              return [...data].sort((a, b) => b.count - a.count);
+              let data = this.rawFinancialData[this.financialViewMode] || [];
+              data = [...data].sort((a, b) => b.count - a.count);
+              if (!this.financialExpanded) {
+                  data = data.slice(0, this.DISPLAY_LIMIT);
+              }
+              return data;
           },
         
         // Initialize
@@ -646,6 +658,14 @@ function lepranApp() {
         
         toggleDecades() {
             this.decadesExpanded = !this.decadesExpanded;
+        },
+        
+        toggleDiary() {
+            this.diaryExpanded = !this.diaryExpanded;
+        },
+        
+        toggleFinancial() {
+            this.financialExpanded = !this.financialExpanded;
         },
         
         // Reset to input screen for new analysis

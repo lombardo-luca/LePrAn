@@ -391,11 +391,21 @@
                                              </template>
                                          </tbody>
                                      </table>
-                                 </div>
-                                 <!-- Chart Type Toggle -->
-                                 <div class="chart-type-toggle">
-                                     <button @click="toggleChartType('diary')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('diary')"></button>
-                                 </div>
+                                  </div>
+                                  <!-- Show All/Less Toggle -->
+                                  <div class="category-toggle-container" x-show="rawDiaryData[diaryAggregationMode].length > 100">
+                                      <button @click="toggleDiary()" class="btn btn-small btn-outline category-toggle-btn">
+                                          <span x-show="!diaryExpanded">Show All</span>
+                                          <span x-show="diaryExpanded">Show Less</span>
+                                      </button>
+                                      <span class="category-count-info" x-show="!diaryExpanded && rawDiaryData[diaryAggregationMode].length > 100">
+                                          Showing top 100 of <span x-text="rawDiaryData[diaryAggregationMode].length"></span> entries
+                                      </span>
+                                  </div>
+                                  <!-- Chart Type Toggle -->
+                                  <div class="chart-type-toggle">
+                                      <button @click="toggleChartType('diary')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('diary')"></button>
+                                  </div>
                                  <div class="chart-container">
                                      <canvas id="diaryChart"></canvas>
                                  </div>
@@ -438,9 +448,15 @@
                                          </tbody>
                                      </table>
                                  </div>
-                                 <!-- Chart Type Toggle -->
-                                 <div class="chart-type-toggle">
-                                     <button @click="toggleChartType('financial')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('financial')"></button>
+                                 <!-- Show All/Less Toggle -->
+                                 <div class="category-toggle-container" x-show="rawFinancialData[financialViewMode].length > 100">
+                                     <button @click="toggleFinancial()" class="btn btn-small btn-outline category-toggle-btn">
+                                         <span x-show="!financialExpanded">Show All</span>
+                                         <span x-show="financialExpanded">Show Less</span>
+                                     </button>
+                                     <span class="category-count-info" x-show="!financialExpanded && rawFinancialData[financialViewMode].length > 100">
+                                         Showing top 100 of <span x-text="rawFinancialData[financialViewMode].length"></span> entries
+                                     </span>
                                  </div>
                                  <div class="chart-container">
                                      <canvas id="financialChart"></canvas>
