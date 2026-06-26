@@ -427,15 +427,15 @@
                          <div class="stat-panel">
                              <div class="panel-content" x-transition>
                                  <div class="table-container">
-                                     <table class="data-table">
-                                         <thead>
-                                             <tr>
-                                                 <th>Rank</th>
-                                                 <th>Film</th>
-                                                 <th x-text="financialViewMode === 'budget' ? 'Budget ($)' : 'Box Office ($)'"></th>
-                                                 <th>%</th>
-                                             </tr>
-                                         </thead>
+                                      <table class="data-table finance-table">
+                                          <thead>
+                                              <tr>
+                                                  <th>Rank</th>
+                                                  <th>Film</th>
+                                                  <th x-text="financialViewMode === 'budget' ? 'Budget ($)' : 'Box Office ($)'"></th>
+                                                  <th>%</th>
+                                              </tr>
+                                          </thead>
                                          <tbody>
                                               <template x-for="(item, idx) in sortedFinancialData" :key="idx">
                                                   <tr>

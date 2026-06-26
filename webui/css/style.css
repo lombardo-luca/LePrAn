@@ -599,6 +599,12 @@ body {
     position: relative;
 }
 
+/* --- Finance Table - ensure budget/box office column fits on one line --- */
+.finance-table th:nth-child(3),
+.finance-table td:nth-child(3) {
+    min-width: 150px;
+}
+
 /* --- Chart Type Toggle --- */
 .chart-type-toggle {
     display: flex;
