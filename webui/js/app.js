@@ -73,17 +73,20 @@ function lepranApp() {
               boxoffice: []
           },
           
-          // Chart type preferences per category ('bar' or 'pie')
-          chartTypes: {
-              countries: 'bar',
-              languages: 'bar',
-              genres: 'bar',
-              directors: 'bar',
-              actors: 'bar',
-              decades: 'bar',
-              diary: 'bar',
-              financial: 'bar'
-          },
+           // Chart type preferences per category ('bar' or 'pie')
+           // Diary has independent chart types per aggregation mode (matching Film panel pattern)
+           chartTypes: {
+               countries: 'bar',
+               languages: 'bar',
+               genres: 'bar',
+               directors: 'bar',
+               actors: 'bar',
+               decades: 'bar',
+               diaryWeekday: 'bar',
+               diaryMonth: 'bar',
+               diaryYear: 'bar',
+               financial: 'bar'
+           },
           
           // Diary aggregation mode: 'weekday', 'month', or 'year'
           diaryAggregationMode: 'weekday',
@@ -173,7 +176,7 @@ function lepranApp() {
                 const saved = localStorage.getItem('lepran_chartTypes');
                 if (saved) {
                     const parsed = JSON.parse(saved);
-                    // Merge with defaults to handle new categories
+                    // Merge with defaults
                     this.chartTypes = { ...this.chartTypes, ...parsed };
                 }
             } catch (e) {
@@ -213,7 +216,9 @@ function lepranApp() {
                 directors: 'directorsChart',
                 actors: 'actorsChart',
                 decades: 'decadesChart',
-                diary: 'diaryChart',
+                diaryWeekday: 'diaryChart',
+                diaryMonth: 'diaryChart',
+                diaryYear: 'diaryChart',
                 financial: 'financialChart'
             };
             const chartId = categoryToChartId[category];
@@ -254,7 +259,9 @@ function lepranApp() {
                 directors: this.rawData.directors,
                 actors: this.rawData.actors,
                 decades: this.rawData.decades,
-                diary: this.sortedDiaryData,
+                diaryWeekday: this.sortedDiaryData,
+                diaryMonth: this.sortedDiaryData,
+                diaryYear: this.sortedDiaryData,
                 financial: this.sortedFinancialData
             };
             const colorMap = {
@@ -264,7 +271,9 @@ function lepranApp() {
                 directors: '#d29922',
                 actors: '#f85149',
                 decades: '#f0883e',
-                diary: '#58a6ff',
+                diaryWeekday: '#58a6ff',
+                diaryMonth: '#58a6ff',
+                diaryYear: '#58a6ff',
                 financial: '#3fb950'
             };
             
@@ -285,9 +294,11 @@ function lepranApp() {
         },
 
         // Recreate diary chart when aggregation mode changes
+        // Uses the mode-specific chart type key (diaryWeekday, diaryMonth, diaryYear)
         onDiaryModeChange() {
+            const diaryCategory = 'diary' + this.diaryAggregationMode.charAt(0).toUpperCase() + this.diaryAggregationMode.slice(1);
             this.$nextTick(() => {
-                this.recreateChartForCategory('diary');
+                this.recreateChartForCategory(diaryCategory);
             });
         },
 
@@ -832,7 +843,7 @@ function lepranApp() {
                 { id: 'directorsChart', data: this.rawData.directors, color: '#d29922', category: 'directors' },
                 { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' },
                 { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' },
-                { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diary' },
+                { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diaryWeekday' },
                 { id: 'financialChart', data: this.sortedFinancialData, color: '#3fb950', category: 'financial' }
             ];
             

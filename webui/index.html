@@ -402,10 +402,10 @@
                                           Showing top 100 of <span x-text="rawDiaryData[diaryAggregationMode].length"></span> entries
                                       </span>
                                   </div>
-                                  <!-- Chart Type Toggle -->
-                                  <div class="chart-type-toggle">
-                                      <button @click="toggleChartType('diary')" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('diary')"></button>
-                                  </div>
+                                   <!-- Chart Type Toggle -->
+                                   <div class="chart-type-toggle">
+                                       <button @click="toggleChartType('diary' + diaryAggregationMode.charAt(0).toUpperCase() + diaryAggregationMode.slice(1))" class="btn btn-small btn-outline chart-type-btn" x-text="getChartTypeLabel('diary' + diaryAggregationMode.charAt(0).toUpperCase() + diaryAggregationMode.slice(1))"></button>
+                                   </div>
                                  <div class="chart-container">
                                      <canvas id="diaryChart"></canvas>
                                  </div>
