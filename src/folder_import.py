@@ -480,16 +480,19 @@ class FolderScraperCoordinator:
         self._diary_entries = []
         self._watched_entries = []
 
+        # Determine total steps from files that are actually processed (watched + diary)
+        total_steps = len(self.data_loader.validator.REQUIRED_FILES)
+
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)
         diary_entries = folder_data['diary']
         diary_films = self.data_loader.parser.extract_unique_films(diary_entries)
         logger.info(f"Step 1: Processing {len(diary_films)} unique films from diary.csv ({len(diary_entries)} total entries, {len(diary_entries) - len(diary_films)} duplicates for scraping)")
 
         if progress_callback:
-            progress_callback(5, f"Processing diary entries ({len(diary_films)} films)...")
+            progress_callback(5, f"Step 1/{total_steps}: Processing diary entries ({len(diary_films)} films)...")
 
         diary_start_time = time_module.time()
-        self._process_films(diary_films, 'diary', start_time=diary_start_time)
+        self._process_films(diary_films, 'diary', step_num=1, total_steps=total_steps, start_time=diary_start_time)
         diary_count = len(diary_films)
 
         # Step 2: Process watched.csv - skip films already in diary cache
@@ -512,14 +515,15 @@ class FolderScraperCoordinator:
         watched_count = len(watched_films)
 
         if progress_callback:
+            step_num = 2
             if len(watched_new_films) > 0:
-                progress_callback(45, f"Processing {len(watched_new_films)} additional watched films...")
+                progress_callback(45, f"Step {step_num}/{total_steps}: Processing {len(watched_new_films)} additional watched films...")
             else:
-                progress_callback(45, "All watched films already in diary - skipping...")
+                progress_callback(45, f"Step {step_num}/{total_steps}: All watched films already in diary - skipping...")
 
         if len(watched_new_films) > 0:
             watched_batch_start = time_module.time()
-            self._process_films(watched_new_films, 'watched', start_time=watched_batch_start)
+            self._process_films(watched_new_films, 'watched', step_num=2, total_steps=total_steps, start_time=watched_batch_start)
 
         # Store diary entries from diary.csv data
         self._store_diary_entries(diary_entries)
@@ -570,7 +574,7 @@ class FolderScraperCoordinator:
             'folder_path': folder_path
         }
 
-        logger.info(f"Folder scraping complete: {total_films} watched films, {diary_count} diary films (analytics use ALL {len(self._diary_entries)} diary entries)")
+        logger.info(f"Folder scraping complete: {total_films} watched films, {diary_count} diary films")
         return result
 
     def _reset_aggregation(self):
@@ -587,7 +591,7 @@ class FolderScraperCoordinator:
             else:
                 self.diary_stats[key] = {}
 
-    def _process_films(self, films: list[tuple[str, str]], source: str, start_time: float = None):
+    def _process_films(self, films: list[tuple[str, str]], source: str, step_num: int = 1, total_steps: int = 1, start_time: float = None):
         """Process a list of films through the TMDB scraper.
 
         Uses isolated batch counters, deduplication cache, and full progress metrics.
@@ -595,6 +599,8 @@ class FolderScraperCoordinator:
         Args:
             films: List of (name, year) tuples.
             source: Either 'watched' or 'diary'.
+            step_num: Current step number (for progress display).
+            total_steps: Total number of steps (for progress display).
             start_time: Epoch time when this batch started (for ETA calculation).
         """
         import time as time_module
@@ -732,9 +738,9 @@ class FolderScraperCoordinator:
                         seconds = int(eta_seconds % 60)
                         eta_str = f"{minutes}m{seconds}s"
 
-                    status = f"Processing {source} films ({batch_processed}/{total})..."
+                    status = f"Step {step_num}/{total_steps}: Processing {source} films ({batch_processed}/{total})..."
                 else:
-                    status = f"Processing {source} films ({batch_processed}/{total})"
+                    status = f"Step {step_num}/{total_steps}: Processing {source} films ({batch_processed}/{total})"
 
                 self.scraper.progress_callback(progress, status)
 

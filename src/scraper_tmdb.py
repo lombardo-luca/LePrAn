@@ -320,7 +320,7 @@ class TMDbScraper:
             'candidates': []
         }
         
-        # --- TIER 1: PRIMARY — Exact year match, highest popularity ---
+        # --- TIER 1: PRIMARY: Exact year match, highest popularity ---
         if year:
             params = {'query': name, 'year': year}
             data = self._make_tmdb_request('/search/movie', params)
@@ -340,11 +340,11 @@ class TMDbScraper:
                     match_info['used_fallback'] = False
                     match_info['match_tier'] = 'exact'
                     
-                    # No logging for exact matches — they are the expected/normal case
+                    # No logging for exact matches as they are the expected/normal case
                     
                     return movie, match_info
         
-        # --- TIER 2: SECONDARY — ±1-2 years, closest year first ---
+        # --- TIER 2: SECONDARY: ±1-2 years, closest year first ---
         if year:
             # Try ±2 year window: year-2, year-1, year+1, year+2
             year_offsets = [-2, -1, 1, 2]
@@ -379,7 +379,7 @@ class TMDbScraper:
                     )
                     return movie, match_info
         
-        # --- TIER 3: FALLBACK — No year filter, strict penalty ---
+        # --- TIER 3: FALLBACK: No year filter, strict penalty ---
         params = {'query': name}
         data = self._make_tmdb_request('/search/movie', params)
         
@@ -406,7 +406,7 @@ class TMDbScraper:
                         f"[AMBIGUOUS] '{name}' (Letterboxd: {year or '?'}) → "
                         f"TMDB: '{movie.get('title', '')}' ({movie.get('release_date', '')[:4]}) "
                         f"[fallback, delta: {delta} years] "
-                        f"⚠️ Requires manual review — large year difference"
+                        f"! Requires manual review: large year difference"
                     )
                 elif delta > 5:
                     match_info['low_confidence'] = True
@@ -424,9 +424,9 @@ class TMDbScraper:
                 
                 return movie, match_info
         
-        # No match found — always log to prevent silent failures
+        # No match found: always log to prevent silent failures
         logger.warning(
-            f"[NO MATCH] '{name}' ({year or '?'}) — film excluded from metadata aggregation"
+            f"[NO MATCH] '{name}' ({year or '?'}): film excluded from metadata aggregation"
         )
         return None, match_info
     

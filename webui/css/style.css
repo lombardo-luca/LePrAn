@@ -263,6 +263,15 @@ body {
     border-radius: var(--radius-md);
 }
 
+/* Step indicator label above the progress bar */
+.progress-step-label {
+    font-size: 0.85rem;
+    color: var(--accent-blue);
+    margin-bottom: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
 .progress-header {
     display: flex;
     justify-content: space-between;

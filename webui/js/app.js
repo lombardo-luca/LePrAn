@@ -14,11 +14,16 @@ function lepranApp() {
          analysisProgress: 'Starting...',
          hasResults: false,
          
-         // Detailed progress stats
-         filmsProcessed: 0,
-         filmsTotal: 0,
-         processingSpeed: 0,
-         etaSeconds: 0,
+          // Detailed progress stats
+          filmsProcessed: 0,
+          filmsTotal: 0,
+          processingSpeed: 0,
+          etaSeconds: 0,
+          
+          // Step indicator state
+          currentStep: 0,
+          totalSteps: 0,
+          status: '',
         
         // Reference to this app instance for global callback
         _appRef: null,
@@ -406,7 +411,18 @@ function lepranApp() {
                     
                     // Update progress bar and status
                     this.progressPercent = progress.percent;
+                    this.status = progress.status;
                     this.analysisProgress = progress.status;
+                    
+                    // Parse step indicator from status (format: "Step X/Y: ...")
+                    const stepMatch = progress.status.match(/^Step\s+(\d+)\/(\d+)/);
+                    if (stepMatch) {
+                        this.currentStep = parseInt(stepMatch[1]);
+                        this.totalSteps = parseInt(stepMatch[2]);
+                    } else {
+                        this.currentStep = 0;
+                        this.totalSteps = 0;
+                    }
                     
                     // Update detailed progress stats
                     this.filmsProcessed = progress.films_processed || 0;
@@ -1235,10 +1251,21 @@ window.__lepranProgress = function(percent, status, filmsProcessed, filmsTotal, 
     if (appEl && appEl.__x) {
         const data = appEl.__x.$data;
         data.progressPercent = percent;
+        data.status = status;
         data.analysisProgress = status;
         data.filmsProcessed = filmsProcessed || 0;
         data.filmsTotal = filmsTotal || 0;
         data.processingSpeed = speed || 0;
         data.etaSeconds = etaSeconds || 0;
+        
+        // Parse step indicator from status (format: "Step X/Y: ...")
+        const stepMatch = status.match(/^Step\s+(\d+)\/(\d+)/);
+        if (stepMatch) {
+            data.currentStep = parseInt(stepMatch[1]);
+            data.totalSteps = parseInt(stepMatch[2]);
+        } else {
+            data.currentStep = 0;
+            data.totalSteps = 0;
+        }
     }
 };

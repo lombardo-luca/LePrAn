@@ -50,6 +50,8 @@
 
                     <!-- Progress Bar -->
                     <div class="progress-container" x-show="isAnalyzing" x-transition>
+                        <!-- Step Indicator -->
+                        <div class="progress-step-label" x-show="currentStep > 0" x-text="'Step ' + currentStep + '/' + totalSteps + ' — ' + status.replace(/^Step \\d+\\/\\d+ — /, '')"></div>
                         <div class="progress-header">
                             <span x-text="analysisProgress"></span>
                             <span x-text="progressPercent + '%'"></span>
