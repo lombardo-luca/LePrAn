@@ -502,9 +502,10 @@ class FolderScraperCoordinator:
         self._watchlist_data = []
         self._main_film_keys = set()
 
-        # Determine total steps: diary + watched + watchlist (if enabled AND present) + compute analytics
+        # Determine total steps: CSV ingestion steps only (diary + watched + watchlist if enabled)
+        # The computing/analytics phase is a post-processing step and does NOT count toward progress
         has_watchlist = import_watchlist and folder_data['watchlist'] is not None
-        total_steps = 3 + (1 if has_watchlist else 0)  # diary, watched, watchlist scrape, compute analytics
+        total_steps = 2 + (1 if has_watchlist else 0)  # diary, watched, watchlist (if enabled)
 
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)
         diary_entries = folder_data['diary']
@@ -513,6 +514,8 @@ class FolderScraperCoordinator:
 
         if progress_callback:
             progress_callback(5, f"Step 1/{total_steps}: Processing diary entries ({len(diary_films)} films)...")
+        
+        # Process diary.csv
 
         diary_start_time = time_module.time()
         self._process_films(diary_films, 'diary', step_num=1, total_steps=total_steps, start_time=diary_start_time)
@@ -543,6 +546,8 @@ class FolderScraperCoordinator:
                 progress_callback(45, f"Step {step_num}/{total_steps}: Processing {len(watched_new_films)} additional watched films...")
             else:
                 progress_callback(45, f"Step {step_num}/{total_steps}: All watched films already in diary - skipping...")
+
+        # Process watched.csv (only new films not in diary cache)
 
         if len(watched_new_films) > 0:
             watched_batch_start = time_module.time()
@@ -585,7 +590,13 @@ class FolderScraperCoordinator:
         # Transfer aggregated data to app context
         self._transfer_aggregated_data()
 
+        # All CSV ingestion steps complete - set progress to 100%
+        if progress_callback:
+            progress_callback(100, "Computing analytics...")
+
         # Compute watchlist analytics (if watchlist data exists)
+        # This is a post-processing phase - it runs after all CSV steps are done
+        # and does NOT affect the step counter or progress bar
         self._compute_watchlist_analytics()
 
         # Compute diary analytics (weekday/month/year aggregation) + financial analytics
