@@ -88,6 +88,18 @@ class SnapshotExporter:
                 film_budget_ranking=analytics.get('film_budget_ranking', dict(self.stats_data.film_budget_data)),
                 film_boxoffice_ranking=analytics.get('film_boxoffice_ranking', dict(self.stats_data.film_boxoffice_data)),
                 budget_range_buckets=analytics.get('budget_range_buckets', {}),
+                # Watchlist analytics
+                wl_total_films=analytics.get('wl_total_films', self.stats_data.wl_films_count),
+                wl_total_hours=analytics.get('wl_total_hours', self.stats_data.wl_total_hours),
+                wl_language_stats=analytics.get('wl_language_stats', dict(self.stats_data.wl_lang_dict)),
+                wl_country_stats=analytics.get('wl_country_stats', dict(self.stats_data.wl_country_dict)),
+                wl_genre_stats=analytics.get('wl_genre_stats', dict(self.stats_data.wl_genre_dict)),
+                wl_director_stats=analytics.get('wl_director_stats', dict(self.stats_data.wl_director_dict)),
+                wl_actor_stats=analytics.get('wl_actor_stats', dict(self.stats_data.wl_actor_dict)),
+                wl_decade_stats=analytics.get('wl_decade_stats', dict(self.stats_data.wl_decade_dict)),
+                wl_film_budget_ranking=analytics.get('wl_film_budget_ranking', dict(self.stats_data.wl_film_budget_data)),
+                wl_film_boxoffice_ranking=analytics.get('wl_film_boxoffice_ranking', dict(self.stats_data.wl_film_boxoffice_data)),
+                wl_budget_range_buckets=analytics.get('wl_budget_range_buckets', {}),
                 username=analytics.get('username', self.login_input),
                 scraped_at=analytics.get('scraped_at', self.stats_data.gui_scraped_at or datetime.now().strftime("%Y-%m-%d"))
             )

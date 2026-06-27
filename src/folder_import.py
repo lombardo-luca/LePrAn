@@ -342,6 +342,11 @@ class FolderScraperCoordinator:
         
         # Watchlist data storage
         self._watchlist_data: list = []
+        
+        # Film-record keys that belong to the watched/diary analytics dataset.
+        # Watchlist-only records are stored for export and watchlist analytics,
+        # but must never flow into the main stats dictionaries.
+        self._main_film_keys: set[str] = set()
     
     def set_raw_csv_content(self, watched: str = "", diary: str = "", watchlist: str = ""):
         """Set raw CSV content for snapshot preservation.
@@ -479,9 +484,12 @@ class FolderScraperCoordinator:
         self._film_records = {}
         self._diary_entries = []
         self._watched_entries = []
+        self._watchlist_data = []
+        self._main_film_keys = set()
 
-        # Determine total steps from files that are actually processed (watched + diary)
-        total_steps = len(self.data_loader.validator.REQUIRED_FILES)
+        # Determine total steps: diary + watched + watchlist (if present) + compute analytics
+        has_watchlist = folder_data['watchlist'] is not None
+        total_steps = 3 + (1 if has_watchlist else 0)  # diary, watched, watchlist scrape, compute analytics
 
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)
         diary_entries = folder_data['diary']
@@ -525,6 +533,28 @@ class FolderScraperCoordinator:
             watched_batch_start = time_module.time()
             self._process_films(watched_new_films, 'watched', step_num=2, total_steps=total_steps, start_time=watched_batch_start)
 
+        # Step 3: Process watchlist.csv (if present) - skip films already in cache
+        if has_watchlist:
+            watchlist_entries = folder_data['watchlist']
+            watchlist_films = self.data_loader.parser.extract_unique_films(watchlist_entries)
+            logger.info(f"Step 3/{total_steps}: Checking {len(watchlist_films)} unique films from watchlist.csv against cache...")
+
+            # Filter watchlist films: only process those NOT already in cache
+            watchlist_new_films = []
+            watchlist_cached_count = 0
+            for name, year in watchlist_films:
+                film_key = (name.lower().strip(), year.strip())
+                if film_key in self._scraped_cache:
+                    watchlist_cached_count += 1
+                else:
+                    watchlist_new_films.append((name, year))
+
+            logger.info(f"Watchlist: {watchlist_cached_count} films already in cache (skipped), {len(watchlist_new_films)} new films to scrape")
+
+            if watchlist_new_films:
+                watchlist_batch_start = time_module.time()
+                self._process_films(watchlist_new_films, 'watchlist', step_num=3, total_steps=total_steps, start_time=watchlist_batch_start)
+
         # Store diary entries from diary.csv data
         self._store_diary_entries(diary_entries)
         logger.info(f"Stored {len(self._diary_entries)} diary entries for analytics (all entries including duplicates)")
@@ -539,6 +569,9 @@ class FolderScraperCoordinator:
 
         # Transfer aggregated data to app context
         self._transfer_aggregated_data()
+
+        # Compute watchlist analytics (if watchlist data exists)
+        self._compute_watchlist_analytics()
 
         # Compute diary analytics (weekday/month/year aggregation) + financial analytics
         self._compute_diary_and_financial_analytics()
@@ -598,14 +631,16 @@ class FolderScraperCoordinator:
 
         Args:
             films: List of (name, year) tuples.
-            source: Either 'watched' or 'diary'.
+            source: Either 'watched', 'diary', or 'watchlist'.
             step_num: Current step number (for progress display).
             total_steps: Total number of steps (for progress display).
             start_time: Epoch time when this batch started (for ETA calculation).
         """
         import time as time_module
 
-        stats_dict = self.watched_stats if source == 'watched' else self.diary_stats
+        stats_dict = None if source == 'watchlist' else (
+            self.watched_stats if source == 'watched' else self.diary_stats
+        )
         batch_start = start_time or time_module.time()
 
         # Local batch counter (isolated per batch, not shared global counter)
@@ -636,27 +671,29 @@ class FolderScraperCoordinator:
                 # Cache the result
                 self._scraped_cache[film_key] = film_data
 
-            # Aggregate data into the appropriate source pool
-            for lang in film_data['languages']:
-                stats_dict['languages'][lang] = stats_dict['languages'].get(lang, 0) + 1
+            # Aggregate only watched/diary films into the main analytics pools.
+            # Watchlist analytics are computed separately in _compute_watchlist_analytics().
+            if stats_dict is not None:
+                for lang in film_data['languages']:
+                    stats_dict['languages'][lang] = stats_dict['languages'].get(lang, 0) + 1
 
-            for country in film_data['countries']:
-                stats_dict['countries'][country] = stats_dict['countries'].get(country, 0) + 1
+                for country in film_data['countries']:
+                    stats_dict['countries'][country] = stats_dict['countries'].get(country, 0) + 1
 
-            for genre in film_data['genres']:
-                stats_dict['genres'][genre] = stats_dict['genres'].get(genre, 0) + 1
+                for genre in film_data['genres']:
+                    stats_dict['genres'][genre] = stats_dict['genres'].get(genre, 0) + 1
 
-            for director in film_data['directors']:
-                stats_dict['directors'][director] = stats_dict['directors'].get(director, 0) + 1
+                for director in film_data['directors']:
+                    stats_dict['directors'][director] = stats_dict['directors'].get(director, 0) + 1
 
-            for actor in film_data['actors']:
-                stats_dict['actors'][actor] = stats_dict['actors'].get(actor, 0) + 1
+                for actor in film_data['actors']:
+                    stats_dict['actors'][actor] = stats_dict['actors'].get(actor, 0) + 1
 
-            if film_data['decade']:
-                stats_dict['decades'][film_data['decade']] = stats_dict['decades'].get(film_data['decade'], 0) + 1
+                if film_data['decade']:
+                    stats_dict['decades'][film_data['decade']] = stats_dict['decades'].get(film_data['decade'], 0) + 1
 
-            if film_data['runtime'] > 0:
-                stats_dict['runtimes'].append(film_data['runtime'])
+                if film_data['runtime'] > 0:
+                    stats_dict['runtimes'].append(film_data['runtime'])
 
             # Store film record for snapshot export
             film_key = f"{name}|{year}"
@@ -844,7 +881,7 @@ class FolderScraperCoordinator:
         stats = self.app_context.stats_data
         
         logger.info(f"Computing diary analytics from {len(self._diary_entries)} entries")
-        logger.info(f"Computing financial analytics from {len(self._film_records)} unique films")
+        logger.info(f"Computing financial analytics from {len(self._main_film_keys)} watched/diary films")
         
         # --- Diary analytics ---
         weekday_counts = {}
@@ -892,6 +929,9 @@ class FolderScraperCoordinator:
         boxoffice_data = {}
         
         for film_key, film_data in self._film_records.items():
+            if film_key not in self._main_film_keys:
+                continue
+            
             title = film_data.get('title', '')
             budget = film_data.get('budget')
             box_office = film_data.get('box_office')
@@ -919,6 +959,7 @@ class FolderScraperCoordinator:
             tmdb_id = None
             if film_key in self._film_records:
                 tmdb_id = self._film_records[film_key].get('tmdb_id')
+            self._main_film_keys.add(film_key)
             
             # Use Watched Date as the primary date for analytics
             # For snapshot export, store both: 'date' = watched_date (analytics), 'log_date' = original date
@@ -947,6 +988,7 @@ class FolderScraperCoordinator:
                 'date': date
             }
             self._watched_entries.append(entry)
+            self._main_film_keys.add(f"{name}|{year}")
     
     def _store_watchlist_data(self, watchlist_entries: list):
         """Store watchlist data from watchlist.csv if available.
@@ -972,6 +1014,120 @@ class FolderScraperCoordinator:
             if film_key in self._film_records:
                 self._film_records[film_key]['in_watchlist'] = True
                 self._film_records[film_key]['added_to_watchlist_date'] = date
+    
+    def _compute_watchlist_analytics(self):
+        """Compute analytics for watchlist films.
+        
+        Uses the same deduplication cache (_scraped_cache) built during watched/diary processing
+        to avoid redundant TMDB API calls. Films appearing in both watched and watchlist reuse
+        their cached data.
+        
+        Populates stats_data watchlist fields (wl_* prefix).
+        """
+        import time as time_module
+        
+        stats = self.app_context.stats_data
+        
+        # Reset watchlist analytics
+        stats.wl_films_count = 0
+        stats.wl_total_hours = 0.0
+        stats.wl_lang_dict.clear()
+        stats.wl_country_dict.clear()
+        stats.wl_genre_dict.clear()
+        stats.wl_director_dict.clear()
+        stats.wl_actor_dict.clear()
+        stats.wl_decade_dict.clear()
+        stats.wl_film_budget_data.clear()
+        stats.wl_film_boxoffice_data.clear()
+        stats.wl_budget_range_buckets.clear()
+        
+        if not self._watchlist_data:
+            logger.info("No watchlist data to compute analytics for")
+            return
+        
+        # Extract unique films from watchlist data
+        seen = set()
+        unique_wl_films = []
+        for entry in self._watchlist_data:
+            name = entry['title']
+            year = entry['year']
+            key = (name.lower().strip(), year.strip())
+            if key not in seen:
+                seen.add(key)
+                unique_wl_films.append((name, year, entry))
+        
+        logger.info(f"Computing watchlist analytics from {len(unique_wl_films)} unique watchlist films")
+        
+        total = len(unique_wl_films)
+        batch_start = time_module.time()
+        
+        for i, (name, year, entry) in enumerate(unique_wl_films):
+            film_key = (name.lower().strip(), year.strip())
+            
+            # Use cached data if available (from watched/diary processing)
+            if film_key in self._scraped_cache:
+                film_data = self._scraped_cache[film_key]
+            else:
+                # Need to scrape this film
+                tmdb_movie, match_info = self.scraper.search_movie(name, year if year else None)
+                film_data = {'languages': [], 'countries': [], 'genres': [],
+                            'directors': [], 'actors': [], 'decade': None, 'runtime': 0,
+                            'budget': None, 'box_office': None}
+                
+                if tmdb_movie:
+                    tmdb_id = tmdb_movie.get('id')
+                    if tmdb_id:
+                        details = self.scraper.get_movie_details(tmdb_id)
+                        film_data = self.scraper._extract_film_data(details, details)
+                
+                # Cache the result for potential reuse
+                self._scraped_cache[film_key] = film_data
+            
+            # Aggregate watchlist analytics
+            for lang in film_data.get('languages', []):
+                stats.wl_lang_dict[lang] = stats.wl_lang_dict.get(lang, 0) + 1
+            for country in film_data.get('countries', []):
+                stats.wl_country_dict[country] = stats.wl_country_dict.get(country, 0) + 1
+            for genre in film_data.get('genres', []):
+                stats.wl_genre_dict[genre] = stats.wl_genre_dict.get(genre, 0) + 1
+            for director in film_data.get('directors', []):
+                stats.wl_director_dict[director] = stats.wl_director_dict.get(director, 0) + 1
+            for actor in film_data.get('actors', []):
+                stats.wl_actor_dict[actor] = stats.wl_actor_dict.get(actor, 0) + 1
+            if film_data.get('decade'):
+                stats.wl_decade_dict[film_data['decade']] += 1
+            
+            # Runtime
+            runtime = film_data.get('runtime', 0)
+            if runtime > 0:
+                stats.wl_total_hours += runtime / 60.0
+            
+            # Financial data
+            budget = film_data.get('budget')
+            box_office = film_data.get('box_office')
+            title = name
+            if budget is not None and budget > 0:
+                stats.wl_film_budget_data[title] = budget
+            if box_office is not None and box_office > 0:
+                stats.wl_film_boxoffice_data[title] = box_office
+            
+            # Progress callback (relative to watchlist batch)
+            if self.scraper.progress_callback and (i + 1) % 5 == 0:
+                batch_processed = i + 1
+                elapsed_time = time_module.time() - batch_start
+                remaining = total - batch_processed
+                if batch_processed > 0 and elapsed_time > 0:
+                    speed = batch_processed / elapsed_time
+                    eta_seconds = remaining / speed if speed > 0 else 0
+                    status = f"Processing watchlist films ({batch_processed}/{total})..."
+                    self.scraper.progress_callback(40 + int(5 * batch_processed / total), status)
+                    if hasattr(self.scraper.progress_callback, '__self__'):
+                        api = self.scraper.progress_callback.__self__
+                        if hasattr(api, 'set_progress_stats'):
+                            api.set_progress_stats(batch_processed, total, speed, eta_seconds)
+        
+        stats.wl_films_count = len(unique_wl_films)
+        logger.info(f"Watchlist analytics computed: {stats.wl_films_count} films, {stats.wl_total_hours:.1f} hours")
     
     @property
     def parser(self):

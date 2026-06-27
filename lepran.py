@@ -25,6 +25,7 @@ from src.folder_import import FolderScraperCoordinator, ImportValidationError
 from src.snapshot import ApplicationSnapshot
 from src.snapshot_export import SnapshotExporter
 from src.snapshot_import import SnapshotImporter, SnapshotImportError
+from src.analytics_utils import compute_budget_range_buckets
 
 # Configure logging
 logging.basicConfig(
@@ -273,9 +274,9 @@ class WebAPI:
             parser = loader.parser
             watched_films = parser.extract_unique_films(folder_data['watched'])
             diary_films = parser.extract_unique_films(folder_data['diary'])
-            unique_watched = set(name.lower().strip() for name, year in watched_films)
-            unique_diary = set(name.lower().strip() for name, year in diary_films)
-            films_count = len(unique_watched) + len(unique_diary)
+            unique_watched = {(name.lower().strip(), str(year).strip()) for name, year in watched_films}
+            unique_diary = {(name.lower().strip(), str(year).strip()) for name, year in diary_films}
+            films_count = len(unique_watched | unique_diary)
         except Exception:
             films_count = 0
         
@@ -286,81 +287,8 @@ class WebAPI:
     
     @staticmethod
     def _compute_budget_range_buckets(film_budget_data: dict) -> dict:
-        """Compute budget range buckets from per-film budget data.
-        
-        Films with budget=0 or missing are placed in "Unknown / Not reported".
-        Buckets are sorted by highest budget first (descending order).
-        
-        Args:
-            film_budget_data: Dict mapping film name to budget value
-            
-        Returns:
-            Dict with 'buckets' list and 'totalFilmsWithBudget' count
-        """
-        # Define bucket boundaries (descending: highest first)
-        bucket_defs = [
-            {"label": "$200M+", "min": 200_000_000, "max": None, "range_str": "$200M+"},
-            {"label": "$100–$200M", "min": 100_000_000, "max": 200_000_000, "range_str": "$100–$200M"},
-            {"label": "$50–$100M", "min": 50_000_000, "max": 100_000_000, "range_str": "$50–$100M"},
-            {"label": "$20–$50M", "min": 20_000_000, "max": 50_000_000, "range_str": "$20–$50M"},
-            {"label": "$5–$20M", "min": 5_000_000, "max": 20_000_000, "range_str": "$5–$20M"},
-            {"label": "$1–$5M", "min": 1_000_000, "max": 5_000_000, "range_str": "$1–$5M"},
-            {"label": "$0–$1M", "min": 0, "max": 1_000_000, "range_str": "$0–$1M"},
-        ]
-        
-        # Count films per bucket
-        buckets = []
-        unknown_count = 0
-        total_with_budget = 0
-        
-        for film_name, budget in film_budget_data.items():
-            if budget is None or budget <= 0:
-                unknown_count += 1
-                continue
-            total_with_budget += 1
-            
-            placed = False
-            for bucket in bucket_defs:
-                if bucket["max"] is None:
-                    # Open-ended upper bucket (highest)
-                    if budget >= bucket["min"]:
-                        bucket["count"] = bucket.get("count", 0) + 1
-                        placed = True
-                        break
-                else:
-                    if bucket["min"] <= budget < bucket["max"]:
-                        bucket["count"] = bucket.get("count", 0) + 1
-                        placed = True
-                        break
-            if not placed:
-                # Budget below all buckets, treat as unknown
-                unknown_count += 1
-        
-        # Build bucket list in order (already defined descending)
-        result_buckets = []
-        for bucket in bucket_defs:
-            count = bucket.get("count", 0)
-            if count > 0:
-                percent = (count / total_with_budget * 100) if total_with_budget > 0 else 0.0
-                result_buckets.append({
-                    "range": bucket["range_str"],
-                    "count": count,
-                    "percent": f"{percent:.1f}"
-                })
-        
-        # Add "Unknown / Not reported" last
-        if unknown_count > 0:
-            percent = (unknown_count / (total_with_budget + unknown_count) * 100) if (total_with_budget + unknown_count) > 0 else 0.0
-            result_buckets.append({
-                "range": "Unknown / Not reported",
-                "count": unknown_count,
-                "percent": f"{percent:.1f}"
-            })
-        
-        return {
-            "buckets": result_buckets,
-            "totalFilmsWithBudget": total_with_budget
-        }
+        """Compute budget range buckets from per-film budget data."""
+        return compute_budget_range_buckets(film_budget_data)
     
     def _build_result(self):
         """Build result dictionary from current stats data."""
@@ -370,6 +298,10 @@ class WebAPI:
         budget_data = dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {}
         budget_range = self._compute_budget_range_buckets(budget_data)
         
+        # Compute watchlist budget range buckets
+        wl_budget_data = dict(stats.wl_film_budget_data) if hasattr(stats, 'wl_film_budget_data') else {}
+        wl_budget_range = self._compute_budget_range_buckets(wl_budget_data)
+        
         return {
             'success': True,
             'username': self.login_input,
@@ -377,6 +309,7 @@ class WebAPI:
             'total_hours': stats.total_hours,
             'total_days': stats.total_days,
             'scraped_at': stats.gui_scraped_at or __import__('time').strftime("%d/%m/%Y", __import__('time').localtime()),
+            # Watched analytics
             'countries': json.dumps(stats.country_dict),
             'languages': json.dumps(stats.lang_dict),
             'genres': json.dumps(stats.genre_dict),
@@ -394,6 +327,22 @@ class WebAPI:
                 'budget': budget_data,
                 'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {},
                 'budget_range': budget_range
+            },
+            # Watchlist analytics (separate dataset, mirrors watched fields)
+            'watchlist_data': {
+                'films_count': stats.wl_films_count,
+                'total_hours': stats.wl_total_hours,
+                'countries': json.dumps(stats.wl_country_dict),
+                'languages': json.dumps(stats.wl_lang_dict),
+                'genres': json.dumps(stats.wl_genre_dict),
+                'directors': json.dumps(stats.wl_director_dict),
+                'actors': json.dumps(stats.wl_actor_dict),
+                'decades': json.dumps(dict(stats.wl_decade_dict)),
+                'financial_data': {
+                    'budget': wl_budget_data,
+                    'boxoffice': dict(stats.wl_film_boxoffice_data) if hasattr(stats, 'wl_film_boxoffice_data') else {},
+                    'budget_range': wl_budget_range
+                }
             }
         }
     
@@ -476,6 +425,24 @@ class WebAPI:
                 if k not in analytics_result:
                     analytics_result[k] = v
             
+            # Add watchlist analytics to result if available
+            if hasattr(stats, 'wl_films_count') and stats.wl_films_count > 0:
+                analytics_result['watchlist_data'] = {
+                    'films_count': stats.wl_films_count,
+                    'total_hours': stats.wl_total_hours,
+                    'countries': json.dumps(stats.wl_country_dict),
+                    'languages': json.dumps(stats.wl_lang_dict),
+                    'genres': json.dumps(stats.wl_genre_dict),
+                    'directors': json.dumps(stats.wl_director_dict),
+                    'actors': json.dumps(stats.wl_actor_dict),
+                    'decades': json.dumps(dict(stats.wl_decade_dict)),
+                    'financial_data': {
+                        'budget': dict(stats.wl_film_budget_data) if hasattr(stats, 'wl_film_budget_data') else {},
+                        'boxoffice': dict(stats.wl_film_boxoffice_data) if hasattr(stats, 'wl_film_boxoffice_data') else {},
+                        'budget_range': self._compute_budget_range_buckets(dict(stats.wl_film_budget_data) if hasattr(stats, 'wl_film_budget_data') else {})
+                    }
+                }
+            
             logger.info(f"Snapshot loaded from {file_path}: {result.get('films_restored', stats.films_count)} films, method={result.get('method', 'unknown')}")
             return {'success': True, 'result': analytics_result}
                 
@@ -488,7 +455,8 @@ class WebAPI:
         
         Args:
             data: dict with keys: username, films_count, total_hours, scraped_at,
-                  countries, languages, genres, directors, actors, decades
+                  countries, languages, genres, directors, actors, decades,
+                  watchlist_data (new format) or watchlist_analytics (legacy format)
         """
         try:
             import tkinter as tk
@@ -542,6 +510,47 @@ class WebAPI:
             
             # Build analytics dict
             # total_days is derived from total_hours (days = hours / 24) - NOT stored
+            
+            # Handle watchlist data from frontend - support both new and legacy formats
+            wl_data = data.get('watchlist_data')
+            wl_analytics = data.get('watchlist_analytics')
+            
+            # Convert watchlist analytics to the format expected by the exporter
+            if wl_data:
+                # New format: watchlist_data with nested fields (arrays)
+                wl_analytics_export = {
+                    'wl_total_films': wl_data.get('films_count', 0),
+                    'wl_total_hours': wl_data.get('total_hours', 0.0),
+                    'wl_language_stats': {item['name']: item['count'] for item in wl_data.get('languages', [])},
+                    'wl_country_stats': {item['name']: item['count'] for item in wl_data.get('countries', [])},
+                    'wl_genre_stats': {item['name']: item['count'] for item in wl_data.get('genres', [])},
+                    'wl_director_stats': {item['name']: item['count'] for item in wl_data.get('directors', [])},
+                    'wl_actor_stats': {item['name']: item['count'] for item in wl_data.get('actors', [])},
+                    'wl_decade_stats': {item['name']: item['count'] for item in wl_data.get('decades', [])},
+                    'wl_film_budget_ranking': wl_data.get('financial_data', {}).get('budget', {}),
+                    'wl_film_boxoffice_ranking': wl_data.get('financial_data', {}).get('boxoffice', {}),
+                    'wl_budget_range_buckets': wl_data.get('financial_data', {}).get('budget_range', {})
+                }
+            elif wl_analytics:
+                # Legacy format: watchlist_analytics with flat fields (dicts)
+                wl_analytics_export = wl_analytics
+            else:
+                wl_analytics_export = {
+                    'wl_total_films': 0,
+                    'wl_total_hours': 0.0,
+                    'wl_language_stats': {},
+                    'wl_country_stats': {},
+                    'wl_genre_stats': {},
+                    'wl_director_stats': {},
+                    'wl_actor_stats': {},
+                    'wl_decade_stats': {},
+                    'wl_film_budget_ranking': {},
+                    'wl_film_boxoffice_ranking': {},
+                    'wl_budget_range_buckets': {}
+                }
+            
+            diary_data = data.get('diary_data', {}) or {}
+            financial_data = data.get('financial_data', {}) or {}
             analytics = {
                 'total_films': data.get('films_count', 0),
                 'total_hours': data.get('total_hours', 0.0),
@@ -552,22 +561,30 @@ class WebAPI:
                 'director_stats': directors,
                 'actor_stats': actors,
                 'decade_stats': decades,
-                'weekday_stats': {},
+                'weekday_stats': diary_data.get('weekday', {}),
+                'month_stats': diary_data.get('month', {}),
+                'year_stats': diary_data.get('year', {}),
                 'rating_stats': {},
                 'tag_stats': {},
-                # Diary analytics (preserve from coordinator if available)
-                'diary_data': data.get('diary_data', {
-                    'weekday': {},
-                    'month': {},
-                    'year': {}
-                }),
-                # Financial analytics (preserve from coordinator if available)
-                'financial_data': data.get('financial_data', {
-                    'budget': {},
-                    'boxoffice': {}
-                }),
+                'film_budget_ranking': financial_data.get('budget', {}),
+                'film_boxoffice_ranking': financial_data.get('boxoffice', {}),
+                'budget_range_buckets': financial_data.get('budget_range', {}),
+                # Watchlist analytics (from frontend data)
+                'watchlist_analytics': wl_analytics_export,
                 'username': data.get('username', ''),
-                'scraped_at': data.get('scraped_at', time.strftime("%d/%m/%Y", time.localtime()))
+                'scraped_at': data.get('scraped_at', time.strftime("%d/%m/%Y", time.localtime())),
+                # Watchlist analytics fields (flat, matching AnalyticsData snapshot model)
+                'wl_total_films': wl_analytics_export.get('wl_total_films', 0),
+                'wl_total_hours': wl_analytics_export.get('wl_total_hours', 0.0),
+                'wl_language_stats': wl_analytics_export.get('wl_language_stats', {}),
+                'wl_country_stats': wl_analytics_export.get('wl_country_stats', {}),
+                'wl_genre_stats': wl_analytics_export.get('wl_genre_stats', {}),
+                'wl_director_stats': wl_analytics_export.get('wl_director_stats', {}),
+                'wl_actor_stats': wl_analytics_export.get('wl_actor_stats', {}),
+                'wl_decade_stats': wl_analytics_export.get('wl_decade_stats', {}),
+                'wl_film_budget_ranking': wl_analytics_export.get('wl_film_budget_ranking', {}),
+                'wl_film_boxoffice_ranking': wl_analytics_export.get('wl_film_boxoffice_ranking', {}),
+                'wl_budget_range_buckets': wl_analytics_export.get('wl_budget_range_buckets', {})
             }
             
             # Get film records, diary entries, and raw CSV content from coordinator

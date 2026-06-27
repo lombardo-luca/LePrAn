@@ -101,6 +101,19 @@ class AnalyticsData:
     # Budget range buckets (distribution view)
     budget_range_buckets: Dict[str, Any] = field(default_factory=dict)  # e.g., {"buckets": [...], "totalFilmsWithBudget": N}
     
+    # Watchlist analytics (separate dataset from watched)
+    wl_total_films: int = 0
+    wl_total_hours: float = 0.0
+    wl_language_stats: Dict[str, int] = field(default_factory=dict)
+    wl_country_stats: Dict[str, int] = field(default_factory=dict)
+    wl_genre_stats: Dict[str, int] = field(default_factory=dict)
+    wl_director_stats: Dict[str, int] = field(default_factory=dict)
+    wl_actor_stats: Dict[str, int] = field(default_factory=dict)
+    wl_decade_stats: Dict[str, int] = field(default_factory=dict)
+    wl_film_budget_ranking: Dict[str, float] = field(default_factory=dict)
+    wl_film_boxoffice_ranking: Dict[str, float] = field(default_factory=dict)
+    wl_budget_range_buckets: Dict[str, Any] = field(default_factory=dict)
+    
     # Metadata
     username: str = ""
     scraped_at: str = ""  # YYYY-MM-DD
@@ -225,6 +238,18 @@ class ApplicationSnapshot:
                 'film_budget_ranking': self.analytics.film_budget_ranking,
                 'film_boxoffice_ranking': self.analytics.film_boxoffice_ranking,
                 'budget_range_buckets': self.analytics.budget_range_buckets,
+                # Watchlist analytics
+                'wl_total_films': self.analytics.wl_total_films,
+                'wl_total_hours': self.analytics.wl_total_hours,
+                'wl_language_stats': self.analytics.wl_language_stats,
+                'wl_country_stats': self.analytics.wl_country_stats,
+                'wl_genre_stats': self.analytics.wl_genre_stats,
+                'wl_director_stats': self.analytics.wl_director_stats,
+                'wl_actor_stats': self.analytics.wl_actor_stats,
+                'wl_decade_stats': self.analytics.wl_decade_stats,
+                'wl_film_budget_ranking': self.analytics.wl_film_budget_ranking,
+                'wl_film_boxoffice_ranking': self.analytics.wl_film_boxoffice_ranking,
+                'wl_budget_range_buckets': self.analytics.wl_budget_range_buckets,
                 'username': self.analytics.username,
                 'scraped_at': self.analytics.scraped_at,
                 'snapshot_version': self.analytics.snapshot_version
@@ -335,6 +360,18 @@ class ApplicationSnapshot:
             film_budget_ranking=analytics_data.get('film_budget_ranking', {}),
             film_boxoffice_ranking=analytics_data.get('film_boxoffice_ranking', {}),
             budget_range_buckets=analytics_data.get('budget_range_buckets', {}),
+            # Watchlist analytics
+            wl_total_films=analytics_data.get('wl_total_films', 0),
+            wl_total_hours=analytics_data.get('wl_total_hours', 0.0),
+            wl_language_stats=analytics_data.get('wl_language_stats', {}),
+            wl_country_stats=analytics_data.get('wl_country_stats', {}),
+            wl_genre_stats=analytics_data.get('wl_genre_stats', {}),
+            wl_director_stats=analytics_data.get('wl_director_stats', {}),
+            wl_actor_stats=analytics_data.get('wl_actor_stats', {}),
+            wl_decade_stats=analytics_data.get('wl_decade_stats', {}),
+            wl_film_budget_ranking=analytics_data.get('wl_film_budget_ranking', {}),
+            wl_film_boxoffice_ranking=analytics_data.get('wl_film_boxoffice_ranking', {}),
+            wl_budget_range_buckets=analytics_data.get('wl_budget_range_buckets', {}),
             username=analytics_data.get('username', ''),
             scraped_at=analytics_data.get('scraped_at', ''),
             snapshot_version=analytics_data.get('snapshot_version', SNAPSHOT_SCHEMA_VERSION)

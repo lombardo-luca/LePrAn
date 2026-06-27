@@ -118,15 +118,22 @@
                     <div class="stat-column">
                         <div class="column-header">
                             <span class="column-title">📊 Film</span>
-                            <div class="column-selector">
-                                <button :class="['selector-btn', { active: leftPanel === 'countries' }]" 
-                                        @click="leftPanel = 'countries'">🌍 Countries</button>
-                                <button :class="['selector-btn', { active: leftPanel === 'languages' }]" 
-                                        @click="leftPanel = 'languages'">🗣️ Languages</button>
-                                <button :class="['selector-btn', { active: leftPanel === 'genres' }]" 
-                                        @click="leftPanel = 'genres'">🎭 Genres</button>
-                                <button :class="['selector-btn', { active: leftPanel === 'decades' }]" 
-                                        @click="leftPanel = 'decades'">📅 Decades</button>
+                            <div class="column-header-actions">
+                                <button @click="togglePanelDataSource('films')" 
+                                        :class="['source-toggle-btn', panelDataSources.films]" 
+                                        x-show="hasWatchlistData"
+                                        x-text="panelDataSources.films === 'watchlist' ? '📋 Watchlist' : '🎬 Watched'">
+                                </button>
+                                <div class="column-selector">
+                                    <button :class="['selector-btn', { active: leftPanel === 'countries' }]" 
+                                            @click="leftPanel = 'countries'">🌍 Countries</button>
+                                    <button :class="['selector-btn', { active: leftPanel === 'languages' }]" 
+                                            @click="leftPanel = 'languages'">🗣️ Languages</button>
+                                    <button :class="['selector-btn', { active: leftPanel === 'genres' }]" 
+                                            @click="leftPanel = 'genres'">🎭 Genres</button>
+                                    <button :class="['selector-btn', { active: leftPanel === 'decades' }]" 
+                                            @click="leftPanel = 'decades'">📅 Decades</button>
+                                </div>
                             </div>
                         </div>
                         <div class="stat-panel">
@@ -150,13 +157,13 @@
                                     </table>
                                 </div>
                                 <!-- Show All/Less Toggle -->
-                                <div class="category-toggle-container" x-show="rawData.countries.length > 100">
+                                <div class="category-toggle-container" x-show="sourceLengthForCategory('countries') > 100">
                                     <button @click="toggleCountries()" class="btn btn-small btn-outline category-toggle-btn">
                                         <span x-show="!countriesExpanded">Show All</span>
                                         <span x-show="countriesExpanded">Show Less</span>
                                     </button>
-                                    <span class="category-count-info" x-show="!countriesExpanded && rawData.countries.length > 100">
-                                        Showing top 100 of <span x-text="rawData.countries.length"></span> countries
+                                    <span class="category-count-info" x-show="!countriesExpanded && sourceLengthForCategory('countries') > 100">
+                                        Showing top 100 of <span x-text="sourceLengthForCategory('countries')"></span> countries
                                     </span>
                                 </div>
                                 <!-- Chart Type Toggle -->
@@ -186,13 +193,13 @@
                                     </table>
                                 </div>
                                 <!-- Show All/Less Toggle -->
-                                <div class="category-toggle-container" x-show="rawData.languages.length > 100">
+                                <div class="category-toggle-container" x-show="sourceLengthForCategory('languages') > 100">
                                     <button @click="toggleLanguages()" class="btn btn-small btn-outline category-toggle-btn">
                                         <span x-show="!languagesExpanded">Show All</span>
                                         <span x-show="languagesExpanded">Show Less</span>
                                     </button>
-                                    <span class="category-count-info" x-show="!languagesExpanded && rawData.languages.length > 100">
-                                        Showing top 100 of <span x-text="rawData.languages.length"></span> languages
+                                    <span class="category-count-info" x-show="!languagesExpanded && sourceLengthForCategory('languages') > 100">
+                                        Showing top 100 of <span x-text="sourceLengthForCategory('languages')"></span> languages
                                     </span>
                                 </div>
                                 <!-- Chart Type Toggle -->
@@ -222,13 +229,13 @@
                                     </table>
                                 </div>
                                 <!-- Show All/Less Toggle -->
-                                <div class="category-toggle-container" x-show="rawData.genres.length > 100">
+                                <div class="category-toggle-container" x-show="sourceLengthForCategory('genres') > 100">
                                     <button @click="toggleGenres()" class="btn btn-small btn-outline category-toggle-btn">
                                         <span x-show="!genresExpanded">Show All</span>
                                         <span x-show="genresExpanded">Show Less</span>
                                     </button>
-                                    <span class="category-count-info" x-show="!genresExpanded && rawData.genres.length > 100">
-                                        Showing top 100 of <span x-text="rawData.genres.length"></span> genres
+                                    <span class="category-count-info" x-show="!genresExpanded && sourceLengthForCategory('genres') > 100">
+                                        Showing top 100 of <span x-text="sourceLengthForCategory('genres')"></span> genres
                                     </span>
                                 </div>
                                 <!-- Chart Type Toggle -->
@@ -258,13 +265,13 @@
                                     </table>
                                 </div>
                                 <!-- Show All/Less Toggle -->
-                                <div class="category-toggle-container" x-show="rawData.decades.length > 100">
+                                <div class="category-toggle-container" x-show="sourceLengthForCategory('decades') > 100">
                                     <button @click="toggleDecades()" class="btn btn-small btn-outline category-toggle-btn">
                                         <span x-show="!decadesExpanded">Show All</span>
                                         <span x-show="decadesExpanded">Show Less</span>
                                     </button>
-                                    <span class="category-count-info" x-show="!decadesExpanded && rawData.decades.length > 100">
-                                        Showing top 100 of <span x-text="rawData.decades.length"></span> decades
+                                    <span class="category-count-info" x-show="!decadesExpanded && sourceLengthForCategory('decades') > 100">
+                                        Showing top 100 of <span x-text="sourceLengthForCategory('decades')"></span> decades
                                     </span>
                                 </div>
                                 <!-- Chart Type Toggle -->
@@ -279,15 +286,22 @@
                     </div>
 
                      <!-- Right Column: Actors, Directors -->
-                     <div class="stat-column">
-                         <div class="column-header">
-                             <span class="column-title">👥 People</span>
-                              <div class="column-selector">
-                                  <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
-                                          @click="rightPanel = 'directors'">🎬 Directors</button>
-                                  <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
-                                          @click="rightPanel = 'actors'">⭐ Actors</button>
-                              </div>
+                      <div class="stat-column">
+                          <div class="column-header">
+                              <span class="column-title">👥 People</span>
+                              <div class="column-header-actions">
+                                  <button @click="togglePanelDataSource('people')" 
+                                          :class="['source-toggle-btn', panelDataSources.people]" 
+                                          x-show="hasWatchlistData"
+                                          x-text="panelDataSources.people === 'watchlist' ? '📋 Watchlist' : '🎬 Watched'">
+                                  </button>
+                                  <div class="column-selector">
+                                     <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
+                                             @click="rightPanel = 'directors'">🎬 Directors</button>
+                                     <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
+                                             @click="rightPanel = 'actors'">⭐ Actors</button>
+                                 </div>
+                             </div>
                          </div>
                           <div class="stat-panel">
                               <!-- Directors Content -->
@@ -308,13 +322,13 @@
                                     </table>
                                 </div>
                                 <!-- Show All/Less Toggle -->
-                                <div class="category-toggle-container" x-show="rawData.directors.length > 100">
+                                <div class="category-toggle-container" x-show="sourceLengthForCategory('directors') > 100">
                                     <button @click="toggleDirectors()" class="btn btn-small btn-outline category-toggle-btn">
                                         <span x-show="!directorsExpanded">Show All</span>
                                         <span x-show="directorsExpanded">Show Less</span>
                                     </button>
-                                    <span class="category-count-info" x-show="!directorsExpanded && rawData.directors.length > 100">
-                                        Showing top 100 of <span x-text="rawData.directors.length"></span> directors
+                                    <span class="category-count-info" x-show="!directorsExpanded && sourceLengthForCategory('directors') > 100">
+                                        Showing top 100 of <span x-text="sourceLengthForCategory('directors')"></span> directors
                                     </span>
                                 </div>
                                 <div class="chart-container">
@@ -340,13 +354,13 @@
                                      </table>
                                  </div>
                                  <!-- Show All/Less Toggle -->
-                                 <div class="actors-toggle-container" x-show="rawData.actors.length > 100">
+                                 <div class="actors-toggle-container" x-show="sourceLengthForCategory('actors') > 100">
                                      <button @click="toggleActors()" class="btn btn-small btn-outline actors-toggle-btn">
                                          <span x-show="!actorsExpanded">Show All</span>
                                          <span x-show="actorsExpanded">Show Less</span>
                                      </button>
-                                     <span class="actors-count-info" x-show="!actorsExpanded && rawData.actors.length > 100">
-                                         Showing top 100 of <span x-text="rawData.actors.length"></span> actors
+                                     <span class="actors-count-info" x-show="!actorsExpanded && sourceLengthForCategory('actors') > 100">
+                                         Showing top 100 of <span x-text="sourceLengthForCategory('actors')"></span> actors
                                      </span>
                                  </div>
                                  <div class="chart-container">
@@ -417,11 +431,17 @@
                          </div>
                      </div>
 
-                      <!-- Right Bottom: Finance -->
-                     <div class="analytics-column">
-                                  <div class="column-header">
-                                       <span class="column-title">💰 Finance</span>
-                                      <div class="column-selector">
+                       <!-- Right Bottom: Finance -->
+                      <div class="analytics-column">
+                                   <div class="column-header">
+                                        <span class="column-title">💰 Finance</span>
+                                       <div class="column-header-actions">
+                                           <button @click="togglePanelDataSource('finance')" 
+                                                   :class="['source-toggle-btn', panelDataSources.finance]" 
+                                                   x-show="hasWatchlistData"
+                                                   x-text="panelDataSources.finance === 'watchlist' ? '📋 Watchlist' : '💰 Watched'">
+                                           </button>
+                                           <div class="column-selector">
                                           <button :class="['selector-btn', { active: financialViewMode === 'budget' }]" 
                                                   @click="financialViewMode = 'budget'; onFinancialModeChange()">💵 Budget</button>
                                           <button :class="['selector-btn', { active: financialViewMode === 'budget_range' }]" 
@@ -487,13 +507,13 @@
                                              </table>
                                          </div>
                                          <!-- Show All/Less Toggle -->
-                                         <div class="category-toggle-container" x-show="rawFinancialData[financialViewMode].length > 100">
+                                         <div class="category-toggle-container" x-show="sourceLengthForFinancial() > 100">
                                              <button @click="toggleFinancial()" class="btn btn-small btn-outline category-toggle-btn">
                                                  <span x-show="!financialExpanded">Show All</span>
                                                  <span x-show="financialExpanded">Show Less</span>
                                              </button>
-                                             <span class="category-count-info" x-show="!financialExpanded && rawFinancialData[financialViewMode].length > 100">
-                                                 Showing top 100 of <span x-text="rawFinancialData[financialViewMode].length"></span> entries
+                                             <span class="category-count-info" x-show="!financialExpanded && sourceLengthForFinancial() > 100">
+                                                 Showing top 100 of <span x-text="sourceLengthForFinancial()"></span> entries
                                              </span>
                                          </div>
                                          <div class="chart-container">

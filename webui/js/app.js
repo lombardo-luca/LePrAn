@@ -31,15 +31,34 @@ function lepranApp() {
         // Charts instances
         charts: {},
         
-         // Stats data
-         stats: {
-             username: '',
-             filmsCount: 0,
-             totalRuntime: '0h',
-             totalHours: 0,
-             totalDays: 0,
-             scrapedAt: ''
-         },
+          // Per-panel data source toggle: each panel independently tracks 'watched' or 'watchlist'
+          // Diary panel is excluded (no toggle) - it always uses diary data
+          panelDataSources: {
+              films: 'watched',
+              people: 'watched',
+              finance: 'watched'
+          },
+          
+          // Backward compatibility computed property for legacy code
+          get dataSource() {
+              return this.panelDataSources.films;
+          },
+          set dataSource(val) {
+              // Set ALL panels (for backward compatibility)
+              this.panelDataSources.films = val;
+              this.panelDataSources.people = val;
+              this.panelDataSources.finance = val;
+          },
+          
+          // Stats data
+          stats: {
+              username: '',
+              filmsCount: 0,
+              totalRuntime: '0h',
+              totalHours: 0,
+              totalDays: 0,
+              scrapedAt: ''
+          },
         
           // Panel state (moved to parent so both columns share the same scope)
           leftPanel: 'countries',
@@ -88,6 +107,33 @@ function lepranApp() {
                boxoffice: []
            },
            rawBudgetRangeData: [],
+           
+           // Watchlist data storage (parallel to rawData for watched data)
+           watchlistData: {
+               countries: [],
+               languages: [],
+               genres: [],
+               directors: [],
+               actors: [],
+               decades: []
+           },
+           
+           // Watchlist financial data storage
+           watchlistFinancialData: {
+               budget: [],
+               boxoffice: []
+           },
+           watchlistBudgetRangeData: [],
+           
+           // Watchlist stats (separate from watched stats)
+           watchlistStats: {
+               username: '',
+               filmsCount: 0,
+               totalRuntime: '0h',
+               totalHours: 0,
+               totalDays: 0,
+               scrapedAt: ''
+           },
           
            // Chart type preferences per category ('bar' or 'pie')
            // Diary has independent chart types per aggregation mode (matching Film panel pattern)
@@ -123,6 +169,9 @@ function lepranApp() {
           },
          
           // Computed sorted data (for display)
+          // Source-aware: each category uses its panel's data source
+          // Film panel categories (countries, languages, genres, decades) -> panelDataSources.films
+          // People panel categories (directors, actors) -> panelDataSources.people
           // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
           get sortedData() {
               const result = {};
@@ -134,8 +183,19 @@ function lepranApp() {
                   actors: this.actorsExpanded,
                   decades: this.decadesExpanded
               };
-              for (const key of Object.keys(this.rawData)) {
-                  let sorted = [...this.rawData[key]].sort((a, b) => b.count - a.count);
+              
+              // Film panel categories: countries, languages, genres, decades
+              const filmCategories = ['countries', 'languages', 'genres', 'decades'];
+              // People panel categories: directors, actors
+              const peopleCategories = ['directors', 'actors'];
+              
+              // Choose data source based on each panel's toggle
+              const filmSourceData = this.panelDataSources.films === 'watchlist' ? this.watchlistData : this.rawData;
+              const peopleSourceData = this.panelDataSources.people === 'watchlist' ? this.watchlistData : this.rawData;
+              
+              for (const key of Object.keys(filmSourceData)) {
+                  const source = filmCategories.includes(key) ? filmSourceData : peopleSourceData;
+                  let sorted = [...source[key]].sort((a, b) => b.count - a.count);
                   
                   // Limit to top 100 unless that category is expanded
                   if (!expansionStates[key]) {
@@ -145,6 +205,28 @@ function lepranApp() {
                   result[key] = sorted;
               }
               return result;
+          },
+          
+          sourceLengthForCategory(category) {
+              const filmCategories = ['countries', 'languages', 'genres', 'decades'];
+              const sourceName = filmCategories.includes(category)
+                  ? this.panelDataSources.films
+                  : this.panelDataSources.people;
+              const sourceData = sourceName === 'watchlist' ? this.watchlistData : this.rawData;
+              return (sourceData[category] || []).length;
+          },
+          
+          sourceLengthForFinancial() {
+              if (this.financialViewMode === 'budget_range') {
+                  const sourceData = this.panelDataSources.finance === 'watchlist'
+                      ? this.watchlistBudgetRangeData
+                      : this.rawBudgetRangeData;
+                  return sourceData.length;
+              }
+              const sourceData = this.panelDataSources.finance === 'watchlist'
+                  ? this.watchlistFinancialData
+                  : this.rawFinancialData;
+              return (sourceData[this.financialViewMode] || []).length;
           },
           
           // Computed: sorted diary data based on current aggregation mode
@@ -159,9 +241,13 @@ function lepranApp() {
           },
           
            // Computed: sorted financial data based on current view mode
+           // Source-aware: reads from rawFinancialData (watched) or watchlistFinancialData based on panelDataSources.finance
            // Limited to DISPLAY_LIMIT entries unless financialExpanded is true
            get sortedFinancialData() {
-               let data = this.rawFinancialData[this.financialViewMode] || [];
+               const sourceData = this.panelDataSources.finance === 'watchlist' 
+                   ? this.watchlistFinancialData 
+                   : this.rawFinancialData;
+               let data = sourceData[this.financialViewMode] || [];
                data = [...data].sort((a, b) => b.count - a.count);
                if (!this.financialExpanded) {
                    data = data.slice(0, this.DISPLAY_LIMIT);
@@ -170,8 +256,12 @@ function lepranApp() {
            },
            
            // Computed: sorted budget range data (bucket aggregation)
+           // Source-aware: reads from rawBudgetRangeData (watched) or watchlistBudgetRangeData based on panelDataSources.finance
             get sortedBudgetRangeData() {
-                let data = [...this.rawBudgetRangeData];
+                const sourceData = this.panelDataSources.finance === 'watchlist' 
+                    ? this.watchlistBudgetRangeData 
+                    : this.rawBudgetRangeData;
+                let data = [...sourceData];
                 // Sort by number of films descending, "Unknown / Not reported" last
                 data.sort((a, b) => {
                     if (a.range === 'Unknown / Not reported') return 1;
@@ -285,13 +375,15 @@ function lepranApp() {
             delete this.charts[chartId];
             
             // Data and color mappings
+            const filmSourceData = this.panelDataSources.films === 'watchlist' ? this.watchlistData : this.rawData;
+            const peopleSourceData = this.panelDataSources.people === 'watchlist' ? this.watchlistData : this.rawData;
             const dataMap = {
-                countries: this.rawData.countries,
-                languages: this.rawData.languages,
-                genres: this.rawData.genres,
-                directors: this.rawData.directors,
-                actors: this.rawData.actors,
-                decades: this.rawData.decades,
+                countries: filmSourceData.countries,
+                languages: filmSourceData.languages,
+                genres: filmSourceData.genres,
+                directors: peopleSourceData.directors,
+                actors: peopleSourceData.actors,
+                decades: filmSourceData.decades,
                 diaryWeekday: this.sortedDiaryData,
                 diaryMonth: this.sortedDiaryData,
                 diaryYear: this.sortedDiaryData,
@@ -477,12 +569,13 @@ function lepranApp() {
                         };
                         
                         // Update category data from imported analytics (top-level in result)
-                        this.rawData.countries = this.parseDictResult(JSON.stringify(r.country_stats || {}));
-                        this.rawData.languages = this.parseDictResult(JSON.stringify(r.language_stats || {}));
-                        this.rawData.genres = this.parseDictResult(JSON.stringify(r.genre_stats || {}));
-                        this.rawData.directors = this.parseDictResult(JSON.stringify(r.director_stats || {}));
-                        this.rawData.actors = this.parseDictResult(JSON.stringify(r.actor_stats || {}));
-                        this.rawData.decades = this.parseDictResult(JSON.stringify(r.decade_stats || {}));
+                        // FIX: Pass dict directly (not wrapped in JSON.stringify) to avoid double-serialization
+                        this.rawData.countries = this.parseDictResult(r.country_stats || {}, r.films_count);
+                        this.rawData.languages = this.parseDictResult(r.language_stats || {}, r.films_count);
+                        this.rawData.genres = this.parseDictResult(r.genre_stats || {}, r.films_count);
+                        this.rawData.directors = this.parseDictResult(r.director_stats || {}, r.films_count);
+                        this.rawData.actors = this.parseDictResult(r.actor_stats || {}, r.films_count);
+                        this.rawData.decades = this.parseDictResult(r.decade_stats || {}, r.films_count);
                         
                         // Load diary data from snapshot (new) - convert dict to array format
                         if (r.diary_data) {
@@ -507,6 +600,8 @@ function lepranApp() {
                             this.rawFinancialData = { budget: [], boxoffice: [] };
                             this.rawBudgetRangeData = [];
                         }
+                        
+                        this.loadWatchlistData(r);
                         
                         // Initialize charts after DOM updates
                         this.$nextTick(() => {
@@ -561,13 +656,13 @@ function lepranApp() {
                     scrapedAt: result.scraped_at || new Date().toLocaleDateString()
                 };
                 
-                // Store category data
-                this.rawData.countries = this.parseDictResult(result.countries);
-                this.rawData.languages = this.parseDictResult(result.languages);
-                this.rawData.genres = this.parseDictResult(result.genres);
-                this.rawData.directors = this.parseDictResult(result.directors);
-                this.rawData.actors = this.parseDictResult(result.actors);
-                this.rawData.decades = this.parseDictResult(result.decades);
+                // Store category data - pass films_count for correct percentage calculation
+                this.rawData.countries = this.parseDictResult(result.countries, result.films_count);
+                this.rawData.languages = this.parseDictResult(result.languages, result.films_count);
+                this.rawData.genres = this.parseDictResult(result.genres, result.films_count);
+                this.rawData.directors = this.parseDictResult(result.directors, result.films_count);
+                this.rawData.actors = this.parseDictResult(result.actors, result.films_count);
+                this.rawData.decades = this.parseDictResult(result.decades, result.films_count);
                 
                 // Load diary data (new) - convert dict to array format
                 if (result.diary_data) {
@@ -593,6 +688,8 @@ function lepranApp() {
                     this.rawBudgetRangeData = [];
                 }
                 
+                this.loadWatchlistData(result);
+                
                 // Initialize charts after DOM updates
                 this.$nextTick(() => {
                     this.initCharts();
@@ -601,6 +698,84 @@ function lepranApp() {
                 alert('Analysis failed: ' + (result.error || 'Unknown error'));
                 this.hasResults = false;
             }
+        },
+        
+
+        // Load watchlist analytics into the isolated watchlist stores.
+        loadWatchlistData(result) {
+            const resetWatchlist = () => {
+                this.watchlistStats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
+                this.watchlistData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
+                this.watchlistFinancialData = { budget: [], boxoffice: [] };
+                this.watchlistBudgetRangeData = [];
+                for (const panel of Object.keys(this.panelDataSources)) {
+                    if (this.panelDataSources[panel] === 'watchlist') {
+                        this.panelDataSources[panel] = 'watched';
+                    }
+                }
+            };
+            
+            if (result.watchlist_data) {
+                const wd = result.watchlist_data;
+                this.watchlistStats = {
+                    username: '',
+                    filmsCount: wd.films_count || 0,
+                    totalRuntime: this.formatRuntime(wd.total_hours || 0),
+                    totalHours: wd.total_hours || 0,
+                    totalDays: wd.total_hours ? wd.total_hours / 24 : 0,
+                    scrapedAt: ''
+                };
+                this.watchlistData.countries = this.parseDictResult(wd.countries || {}, wd.films_count);
+                this.watchlistData.languages = this.parseDictResult(wd.languages || {}, wd.films_count);
+                this.watchlistData.genres = this.parseDictResult(wd.genres || {}, wd.films_count);
+                this.watchlistData.directors = this.parseDictResult(wd.directors || {}, wd.films_count);
+                this.watchlistData.actors = this.parseDictResult(wd.actors || {}, wd.films_count);
+                this.watchlistData.decades = this.parseDictResult(wd.decades || {}, wd.films_count);
+                
+                if (wd.financial_data) {
+                    this.watchlistFinancialData = {
+                        budget: this._dictToFinancialArray(wd.financial_data.budget || {}),
+                        boxoffice: this._dictToFinancialArray(wd.financial_data.boxoffice || {})
+                    };
+                    this.watchlistBudgetRangeData = this._dictToBudgetRangeArray(wd.financial_data.budget_range || {});
+                } else {
+                    this.watchlistFinancialData = { budget: [], boxoffice: [] };
+                    this.watchlistBudgetRangeData = [];
+                }
+                return;
+            }
+            
+            if (result.watchlist_analytics) {
+                const wa = result.watchlist_analytics;
+                this.watchlistStats = {
+                    username: wa.username || this.watchlistStats.username || 'Watchlist',
+                    filmsCount: wa.total_films || 0,
+                    totalRuntime: this.formatRuntime(wa.total_hours || 0),
+                    totalHours: wa.total_hours || 0,
+                    totalDays: wa.total_hours ? wa.total_hours / 24 : 0,
+                    scrapedAt: wa.scraped_at || this.watchlistStats.scrapedAt || ''
+                };
+                this.watchlistData.countries = this.parseDictResult(wa.country_stats || {}, wa.total_films);
+                this.watchlistData.languages = this.parseDictResult(wa.language_stats || {}, wa.total_films);
+                this.watchlistData.genres = this.parseDictResult(wa.genre_stats || {}, wa.total_films);
+                this.watchlistData.directors = this.parseDictResult(wa.director_stats || {}, wa.total_films);
+                this.watchlistData.actors = this.parseDictResult(wa.actor_stats || {}, wa.total_films);
+                this.watchlistData.decades = this.parseDictResult(wa.decade_stats || {}, wa.total_films);
+                
+                if (wa.financial_data) {
+                    this.watchlistFinancialData = {
+                        budget: this._dictToFinancialArray(wa.financial_data.budget || {}),
+                        boxoffice: this._dictToFinancialArray(wa.financial_data.boxoffice || {})
+                    };
+                    this.watchlistBudgetRangeData = this._dictToBudgetRangeArray(wa.financial_data.budget_range || {});
+                } else {
+                    this.watchlistFinancialData = { budget: [], boxoffice: [] };
+                    this.watchlistBudgetRangeData = [];
+                }
+                return;
+            }
+            
+            resetWatchlist();
         },
         
         // Handle analysis error
@@ -625,7 +800,8 @@ function lepranApp() {
         },
         
         // Parse dictionary results from Python into array format
-        parseDictResult(dictData) {
+        // Optional filmsCount parameter for correct percentage calculation
+        parseDictResult(dictData, filmsCount) {
             if (!dictData) return [];
             
             try {
@@ -639,8 +815,8 @@ function lepranApp() {
                 
                 return Object.entries(parsed).map(([name, count]) => ({
                     name: String(name),
-                    count: Number(count),
-                    percent: this.calculatePercent(Number(count))
+                    count: Number(count) || 0,
+                    percent: this.calculatePercentForCount(Number(count) || 0, filmsCount)
                 }));
             } catch (e) {
                 console.error('Failed to parse dict data:', e);
@@ -702,10 +878,21 @@ function lepranApp() {
                 });
         },
         
-        // Calculate percentage for a count value
+        // Calculate percentage for a count value (source-aware)
         calculatePercent(count) {
-            if (!this.stats.filmsCount || this.stats.filmsCount === 0) return '0.00%';
-            const percent = (count / this.stats.filmsCount) * 100;
+            const filmsCount = this.dataSource === 'watchlist' 
+                ? this.watchlistStats.filmsCount 
+                : this.stats.filmsCount;
+            if (!filmsCount || filmsCount === 0) return '0.00%';
+            const percent = (count / filmsCount) * 100;
+            return percent.toFixed(2) + '%';
+        },
+        
+        // Calculate percentage for a count value with explicit films count
+        // Used by parseDictResult when loading data with known film counts
+        calculatePercentForCount(count, filmsCount) {
+            if (!filmsCount || filmsCount === 0) return '0.00%';
+            const percent = (count / filmsCount) * 100;
             return percent.toFixed(2) + '%';
         },
         
@@ -774,7 +961,51 @@ function lepranApp() {
             this.budgetRangeExpanded = !this.budgetRangeExpanded;
         },
         
-         // Reset to input screen for new analysis
+
+        setPanelDataSource(panel, source) {
+            if (!Object.prototype.hasOwnProperty.call(this.panelDataSources, panel)) return;
+            if (source !== 'watched' && source !== 'watchlist') return;
+            if (source === 'watchlist' && !this.hasWatchlistData) return;
+            this.panelDataSources[panel] = source;
+            this.$nextTick(() => {
+                this.refreshPanelCharts(panel);
+            });
+        },
+        
+        refreshPanelCharts(panel) {
+            const panelCategories = {
+                films: ['countries', 'languages', 'genres', 'decades'],
+                people: ['directors', 'actors'],
+                finance: ['financial', 'budgetRange']
+            };
+            const categories = panelCategories[panel] || [];
+            categories.forEach(category => this.recreateChartForCategory(category));
+        },
+        
+        togglePanelDataSource(panel) {
+            const current = this.panelDataSources[panel] || 'watched';
+            this.setPanelDataSource(panel, current === 'watchlist' ? 'watched' : 'watchlist');
+        },
+        
+        // Switch data source between watched and watchlist
+        // For backward compatibility: switches the Film panel (default)
+        switchDataSource(source) {
+            if (source === 'watched' || source === 'watchlist') {
+                this.setPanelDataSource('films', source);
+            }
+        },
+        
+        // Get display label for current data source
+        getDataSourceLabel() {
+            return this.dataSource === 'watchlist' ? 'Watchlist' : 'Watched';
+        },
+        
+        // Check if watchlist data is available (loaded from analysis)
+        get hasWatchlistData() {
+            return this.watchlistStats && this.watchlistStats.filmsCount > 0;
+        },
+        
+        // Reset to input screen for new analysis
          resetToInput() {
              // Clean up polling interval if still active
              if (this._progressInterval) {
@@ -787,7 +1018,11 @@ function lepranApp() {
              this.selectedFolderName = '';
              this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
+            this.rawDiaryData = { weekday: [], month: [], year: [] };
+            this.rawFinancialData = { budget: [], boxoffice: [] };
             this.rawBudgetRangeData = [];
+            this.loadWatchlistData({});
+            this.panelDataSources = { films: 'watched', people: 'watched', finance: 'watched' };
             
             // Destroy charts to free memory
             this.destroyCharts();
@@ -809,7 +1044,35 @@ function lepranApp() {
                         genres: this.rawData.genres,
                         directors: this.rawData.directors,
                         actors: this.rawData.actors,
-                        decades: this.rawData.decades
+                        decades: this.rawData.decades,
+                        // Diary analytics
+                        diary_data: {
+                            weekday: Object.fromEntries(this.rawDiaryData.weekday.map(i => [i.name, i.count])),
+                            month: Object.fromEntries(this.rawDiaryData.month.map(i => [i.name, i.count])),
+                            year: Object.fromEntries(this.rawDiaryData.year.map(i => [i.name, i.count]))
+                        },
+                        // Financial analytics
+                        financial_data: {
+                            budget: Object.fromEntries(this.rawFinancialData.budget.map(i => [i.name, i.count])),
+                            boxoffice: Object.fromEntries(this.rawFinancialData.boxoffice.map(i => [i.name, i.count])),
+                            budget_range: Object.fromEntries(this.rawBudgetRangeData.map(i => [i.range, i.count]))
+                        },
+                        // Watchlist analytics
+                        watchlist_data: {
+                            films_count: this.watchlistStats.filmsCount,
+                            total_hours: this.watchlistStats.totalHours,
+                            countries: this.watchlistData.countries,
+                            languages: this.watchlistData.languages,
+                            genres: this.watchlistData.genres,
+                            directors: this.watchlistData.directors,
+                            actors: this.watchlistData.actors,
+                            decades: this.watchlistData.decades,
+                            financial_data: {
+                                budget: Object.fromEntries(this.watchlistFinancialData.budget.map(i => [i.name, i.count])),
+                                boxoffice: Object.fromEntries(this.watchlistFinancialData.boxoffice.map(i => [i.name, i.count])),
+                                budget_range: Object.fromEntries(this.watchlistBudgetRangeData.map(i => [i.range, i.count]))
+                            }
+                        }
                     });
                     
                     if (result && result.success) {
@@ -932,19 +1195,34 @@ function lepranApp() {
         },
         
         // Initialize Chart.js charts for all panels
+        // Source-aware: each panel uses its own data source selection
+        // Film panel (countries, languages, genres, decades) -> panelDataSources.films
+        // People panel (directors, actors) -> panelDataSources.people
+        // Finance panel (financial, budgetRange) -> panelDataSources.finance
+        // Diary panel -> always uses rawDiaryData (no toggle)
         initCharts() {
             this.destroyCharts();
             
+            // Choose data sources based on each panel's toggle
+            const filmSourceData = this.panelDataSources.films === 'watchlist' ? this.watchlistData : this.rawData;
+            const peopleSourceData = this.panelDataSources.people === 'watchlist' ? this.watchlistData : this.rawData;
+            const financeSourceData = this.panelDataSources.finance === 'watchlist' ? this.watchlistFinancialData : this.rawFinancialData;
+            const financeBudgetRangeSource = this.panelDataSources.finance === 'watchlist' ? this.watchlistBudgetRangeData : this.rawBudgetRangeData;
+            
             const chartConfigs = [
-                { id: 'countriesChart', data: this.rawData.countries, color: '#58a6ff', category: 'countries' },
-                { id: 'languagesChart', data: this.rawData.languages, color: '#3fb950', category: 'languages' },
-                { id: 'genresChart', data: this.rawData.genres, color: '#bc8cff', category: 'genres' },
-                { id: 'directorsChart', data: this.rawData.directors, color: '#d29922', category: 'directors' },
-                { id: 'actorsChart', data: this.rawData.actors, color: '#f85149', category: 'actors' },
-                { id: 'decadesChart', data: this.rawData.decades, color: '#f0883e', category: 'decades' },
+                // Film panel charts (use panelDataSources.films)
+                { id: 'countriesChart', data: filmSourceData.countries, color: '#58a6ff', category: 'countries' },
+                { id: 'languagesChart', data: filmSourceData.languages, color: '#3fb950', category: 'languages' },
+                { id: 'genresChart', data: filmSourceData.genres, color: '#bc8cff', category: 'genres' },
+                { id: 'decadesChart', data: filmSourceData.decades, color: '#f0883e', category: 'decades' },
+                // People panel charts (use panelDataSources.people)
+                { id: 'directorsChart', data: peopleSourceData.directors, color: '#d29922', category: 'directors' },
+                { id: 'actorsChart', data: peopleSourceData.actors, color: '#f85149', category: 'actors' },
+                // Diary chart (always uses rawDiaryData - no toggle)
                 { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diaryWeekday' },
-                { id: 'financialChart', data: this.sortedFinancialData, color: '#3fb950', category: 'financial' },
-                { id: 'budgetRangeChart', data: this.sortedBudgetRangeData, color: '#bc8cff', category: 'budgetRange' }
+                // Finance panel charts (use panelDataSources.finance)
+                { id: 'financialChart', data: financeSourceData[this.financialViewMode] || [], color: '#3fb950', category: 'financial' },
+                { id: 'budgetRangeChart', data: financeBudgetRangeSource, color: '#bc8cff', category: 'budgetRange' }
             ];
             
             chartConfigs.forEach(config => {

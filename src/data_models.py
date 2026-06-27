@@ -34,6 +34,19 @@ class StatisticsData:
         # Budget range buckets (distribution view)
         self.budget_range_buckets = {}   # {"buckets": [...], "totalFilmsWithBudget": N}
         
+        # Watchlist analytics (separate dataset, mirrors watched fields above)
+        self.wl_films_count = 0
+        self.wl_total_hours = 0.0
+        self.wl_lang_dict = {}
+        self.wl_country_dict = {}
+        self.wl_genre_dict = {}
+        self.wl_director_dict = {}
+        self.wl_actor_dict = {}
+        self.wl_decade_dict = defaultdict(int)
+        self.wl_film_budget_data = {}
+        self.wl_film_boxoffice_data = {}
+        self.wl_budget_range_buckets = {}  # {"buckets": [...], "totalFilmsWithBudget": N}
+        
         # GUI display strings
         self.gui_watched1 = ""
         self.gui_watched2 = ""

@@ -440,6 +440,61 @@ body {
     gap: 6px;
 }
 
+/* --- Column Header Actions (wrapper for source toggle + selector) --- */
+.column-header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* --- Source Toggle Button (Watched/Watchlist) --- */
+.source-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.source-toggle-btn:hover {
+    background: #30363d;
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.source-toggle-btn.watched {
+    color: var(--accent-green);
+    border-color: rgba(63, 185, 80, 0.4);
+    background: rgba(63, 185, 80, 0.08);
+}
+
+.source-toggle-btn.watched:hover {
+    background: rgba(63, 185, 80, 0.15);
+    border-color: var(--accent-green);
+}
+
+.source-toggle-btn.watchlist {
+    color: var(--accent-purple);
+    border-color: rgba(188, 140, 255, 0.4);
+    background: rgba(188, 140, 255, 0.08);
+}
+
+.source-toggle-btn.watchlist:hover {
+    background: rgba(188, 140, 255, 0.15);
+    border-color: var(--accent-purple);
+}
+
 .selector-btn {
     flex: 1;
     padding: 8px 12px;

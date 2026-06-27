@@ -19,8 +19,10 @@ from .snapshot import (
 )
 from .data_models import StatisticsData
 from .data_models import GUIModels
+from .analytics_utils import compute_budget_range_buckets
 
 logger = logging.getLogger(__name__)
+
 
 
 class SnapshotImportError(Exception):
@@ -126,16 +128,47 @@ class SnapshotImporter:
             logger.error(f"Failed to restore from snapshot: {e}")
             raise SnapshotImportError(f"Import failed: {str(e)}")
     
+    @staticmethod
+    def _normalized_film_key(title, year) -> str:
+        return f"{str(title).strip().lower()}|{str(year).strip()}"
+    
+    def _snapshot_main_film_keys(self, snapshot: ApplicationSnapshot) -> set[str]:
+        """Return normalized keys for films that belong to watched/diary analytics."""
+        keys = set()
+        for entry in snapshot.watched_entries or []:
+            keys.add(self._normalized_film_key(entry.get('title', ''), entry.get('year', '')))
+        for entry in snapshot.diary_entries or []:
+            keys.add(self._normalized_film_key(entry.title, entry.year))
+        return keys
+    
+    def _snapshot_watchlist_film_keys(self, snapshot: ApplicationSnapshot) -> set[str]:
+        keys = set()
+        for entry in snapshot.watchlist.films or []:
+            keys.add(self._normalized_film_key(entry.get('title', ''), entry.get('year', '')))
+        return keys
+    
+    def _is_main_film(self, key: str, film: FilmRecord, main_keys: set[str]) -> bool:
+        normalized = self._normalized_film_key(film.title, film.year)
+        if main_keys:
+            return normalized in main_keys
+        return not film.in_watchlist
+    
     def _rebuild_from_films(self, snapshot: ApplicationSnapshot):
-        """Rebuild statistics data from individual film records."""
+        """Rebuild watched/diary statistics from individual film records."""
         films = snapshot.films
+        main_keys = self._snapshot_main_film_keys(snapshot)
+        main_films = {}
         
         for key, film in films.items():
+            if not self._is_main_film(key, film, main_keys):
+                continue
+            main_films[key] = film
+            
             # Add URL if available
             if film.tmdb_id:
                 self.stats_data.add_url(f"tmdb://{film.tmdb_id}")
             
-            # Add film data to statistics
+            # Add film data to watched/diary statistics only
             self.stats_data.add_film_data(
                 film_languages=film.languages,
                 film_countries=film.countries,
@@ -145,11 +178,20 @@ class SnapshotImporter:
                 decade=film.decade
             )
         
+        watched_keys = {
+            self._normalized_film_key(entry.get('title', ''), entry.get('year', ''))
+            for entry in (snapshot.watched_entries or [])
+        }
+        self._rebuilt_total_films = len(watched_keys) if watched_keys else len(main_films)
+        self._rebuilt_total_hours = sum(
+            (film.runtime or 0) for film in main_films.values()
+        ) / 60.0
+        
         # Rebuild diary analytics from diary entries
         self._rebuild_diary_analytics(snapshot.diary_entries)
         
-        # Rebuild financial analytics from film records
-        self._rebuild_financial_analytics(films)
+        # Rebuild financial analytics from watched/diary film records only
+        self._rebuild_financial_analytics(main_films)
     
     def _rebuild_diary_analytics(self, diary_entries: list):
         """Rebuild diary analytics (weekday/month/year counts) from diary entries."""
@@ -188,35 +230,127 @@ class SnapshotImporter:
                 self.stats_data.film_boxoffice_data[film.title] = film.box_office
         
         # Compute budget range buckets from the rebuilt budget data
-        from lepran import WebAPI
         budget_data = dict(self.stats_data.film_budget_data)
-        budget_range = WebAPI._compute_budget_range_buckets(budget_data)
-        self.stats_data.budget_range_buckets = budget_range
+        self.stats_data.budget_range_buckets = compute_budget_range_buckets(budget_data)
+    
+    def _rebuild_watchlist_analytics(self, snapshot: ApplicationSnapshot):
+        """Rebuild watchlist analytics from film records marked as in_watchlist."""
+        analytics = snapshot.analytics
+        films = snapshot.films
+        
+        # Collect watchlist films from explicit watchlist entries and record flags.
+        watchlist_keys = self._snapshot_watchlist_film_keys(snapshot)
+        wl_films = []
+        for key, film in films.items():
+            normalized = self._normalized_film_key(film.title, film.year)
+            if film.in_watchlist or normalized in watchlist_keys:
+                wl_films.append(film)
+        
+        # Set watchlist film count and hours
+        self.stats_data.wl_films_count = len(wl_films)
+        
+        # Compute total hours for watchlist films
+        total_wl_hours = 0.0
+        for film in wl_films:
+            if film.runtime is not None:
+                total_wl_hours += film.runtime / 60.0
+        
+        self.stats_data.wl_total_hours = total_wl_hours
+        
+        # Compute watchlist analytics dictionaries
+        wl_lang_dict = {}
+        wl_country_dict = {}
+        wl_genre_dict = {}
+        wl_director_dict = {}
+        wl_actor_dict = {}
+        wl_decade_dict = {}
+        wl_film_budget_data = {}
+        wl_film_boxoffice_data = {}
+        
+        for film in wl_films:
+            # Languages
+            for lang in film.languages:
+                wl_lang_dict[lang] = wl_lang_dict.get(lang, 0) + 1
+            
+            # Countries
+            for country in film.countries:
+                wl_country_dict[country] = wl_country_dict.get(country, 0) + 1
+            
+            # Genres
+            for genre in film.genres:
+                wl_genre_dict[genre] = wl_genre_dict.get(genre, 0) + 1
+            
+            # Directors
+            for director in film.directors:
+                wl_director_dict[director] = wl_director_dict.get(director, 0) + 1
+            
+            # Actors
+            for actor in film.actors:
+                wl_actor_dict[actor] = wl_actor_dict.get(actor, 0) + 1
+            
+            # Decades
+            if film.decade:
+                wl_decade_dict[film.decade] = wl_decade_dict.get(film.decade, 0) + 1
+            
+            # Budget data
+            if film.budget is not None and film.budget > 0:
+                wl_film_budget_data[film.title] = film.budget
+            
+            # Box office data
+            if film.box_office is not None and film.box_office > 0:
+                wl_film_boxoffice_data[film.title] = film.box_office
+        
+        # Update stats data
+        self.stats_data.wl_lang_dict.clear()
+        self.stats_data.wl_lang_dict.update(wl_lang_dict)
+        self.stats_data.wl_country_dict.clear()
+        self.stats_data.wl_country_dict.update(wl_country_dict)
+        self.stats_data.wl_genre_dict.clear()
+        self.stats_data.wl_genre_dict.update(wl_genre_dict)
+        self.stats_data.wl_director_dict.clear()
+        self.stats_data.wl_director_dict.update(wl_director_dict)
+        self.stats_data.wl_actor_dict.clear()
+        self.stats_data.wl_actor_dict.update(wl_actor_dict)
+        self.stats_data.wl_decade_dict.clear()
+        self.stats_data.wl_decade_dict.update(wl_decade_dict)
+        self.stats_data.wl_film_budget_data.clear()
+        self.stats_data.wl_film_budget_data.update(wl_film_budget_data)
+        self.stats_data.wl_film_boxoffice_data.clear()
+        self.stats_data.wl_film_boxoffice_data.update(wl_film_boxoffice_data)
+        
+        # Compute watchlist budget range buckets
+        wl_budget_range = compute_budget_range_buckets(wl_film_budget_data)
+        self.stats_data.wl_budget_range_buckets.clear()
+        self.stats_data.wl_budget_range_buckets.update(wl_budget_range)
     
     def _restore_from_rebuilt(self, snapshot: ApplicationSnapshot) -> dict:
         """Restore state after rebuilding from film records."""
         analytics = snapshot.analytics
         
-        # Compute total_days from total_hours (single source of truth)
-        total_days = analytics.total_hours / 24.0
+        rebuilt_total_films = getattr(self, '_rebuilt_total_films', analytics.total_films)
+        rebuilt_total_hours = getattr(self, '_rebuilt_total_hours', analytics.total_hours)
+        total_days = rebuilt_total_hours / 24.0
         
-        # Set meta data
+        # Set meta data from the rebuilt watched/diary dataset, not all film records.
         self.stats_data.set_meta_data(
-            films_count=analytics.total_films,
-            total_hours=analytics.total_hours,
+            films_count=rebuilt_total_films,
+            total_hours=rebuilt_total_hours,
             total_days=total_days,
             scraped_at=analytics.scraped_at
         )
         
         # Populate GUI models
-        self.gui_models.populate_model('countries', self.stats_data.country_dict, analytics.total_films)
-        self.gui_models.populate_model('languages', self.stats_data.lang_dict, analytics.total_films)
-        self.gui_models.populate_model('genres', self.stats_data.genre_dict, analytics.total_films)
-        self.gui_models.populate_model('directors', self.stats_data.director_dict, analytics.total_films)
-        self.gui_models.populate_model('actors', self.stats_data.actor_dict, analytics.total_films)
+        self.gui_models.populate_model('countries', self.stats_data.country_dict, rebuilt_total_films)
+        self.gui_models.populate_model('languages', self.stats_data.lang_dict, rebuilt_total_films)
+        self.gui_models.populate_model('genres', self.stats_data.genre_dict, rebuilt_total_films)
+        self.gui_models.populate_model('directors', self.stats_data.director_dict, rebuilt_total_films)
+        self.gui_models.populate_model('actors', self.stats_data.actor_dict, rebuilt_total_films)
+        
+        # Rebuild watchlist analytics from film records marked as in_watchlist
+        self._rebuild_watchlist_analytics(snapshot)
         
         return {
-            'films_restored': analytics.total_films,
+            'films_restored': rebuilt_total_films,
             'diary_entries_restored': len(snapshot.diary_entries),
             'watchlist_items_restored': snapshot.watchlist.total_count,
             'method': 'rebuilt_from_films'
@@ -290,12 +424,62 @@ class SnapshotImporter:
         self.gui_models.populate_model('directors', self.stats_data.director_dict, analytics.total_films)
         self.gui_models.populate_model('actors', self.stats_data.actor_dict, analytics.total_films)
         
+        # Restore watchlist analytics from pre-computed analytics
+        self._restore_watchlist_analytics(snapshot)
+        
         return {
             'films_restored': analytics.total_films,
             'diary_entries_restored': len(snapshot.diary_entries),
             'watchlist_items_restored': snapshot.watchlist.total_count,
             'method': 'precomputed_analytics'
         }
+    
+    def _restore_watchlist_analytics(self, snapshot: ApplicationSnapshot):
+        """Restore watchlist analytics from snapshot data."""
+        analytics = snapshot.analytics
+        
+        # Restore watchlist film count and hours
+        self.stats_data.wl_films_count = analytics.wl_total_films if hasattr(analytics, 'wl_total_films') else 0
+        self.stats_data.wl_total_hours = analytics.wl_total_hours if hasattr(analytics, 'wl_total_hours') else 0.0
+        
+        # Restore watchlist dictionaries
+        if hasattr(analytics, 'wl_language_stats') and analytics.wl_language_stats:
+            self.stats_data.wl_lang_dict.clear()
+            self.stats_data.wl_lang_dict.update(analytics.wl_language_stats)
+        
+        if hasattr(analytics, 'wl_country_stats') and analytics.wl_country_stats:
+            self.stats_data.wl_country_dict.clear()
+            self.stats_data.wl_country_dict.update(analytics.wl_country_stats)
+        
+        if hasattr(analytics, 'wl_genre_stats') and analytics.wl_genre_stats:
+            self.stats_data.wl_genre_dict.clear()
+            self.stats_data.wl_genre_dict.update(analytics.wl_genre_stats)
+        
+        if hasattr(analytics, 'wl_director_stats') and analytics.wl_director_stats:
+            self.stats_data.wl_director_dict.clear()
+            self.stats_data.wl_director_dict.update(analytics.wl_director_stats)
+        
+        if hasattr(analytics, 'wl_actor_stats') and analytics.wl_actor_stats:
+            self.stats_data.wl_actor_dict.clear()
+            self.stats_data.wl_actor_dict.update(analytics.wl_actor_stats)
+        
+        if hasattr(analytics, 'wl_decade_stats') and analytics.wl_decade_stats:
+            self.stats_data.wl_decade_dict.clear()
+            self.stats_data.wl_decade_dict.update(analytics.wl_decade_stats)
+        
+        # Restore watchlist financial analytics from pre-computed ranking
+        if hasattr(analytics, 'wl_film_budget_ranking') and analytics.wl_film_budget_ranking:
+            self.stats_data.wl_film_budget_data.clear()
+            self.stats_data.wl_film_budget_data.update(analytics.wl_film_budget_ranking)
+        
+        if hasattr(analytics, 'wl_film_boxoffice_ranking') and analytics.wl_film_boxoffice_ranking:
+            self.stats_data.wl_film_boxoffice_data.clear()
+            self.stats_data.wl_film_boxoffice_data.update(analytics.wl_film_boxoffice_ranking)
+        
+        # Restore watchlist budget range buckets
+        if hasattr(analytics, 'wl_budget_range_buckets') and analytics.wl_budget_range_buckets:
+            self.stats_data.wl_budget_range_buckets.clear()
+            self.stats_data.wl_budget_range_buckets.update(analytics.wl_budget_range_buckets)
     
     def import_from_file(self, file_path: str, rebuild_from_films: bool = True) -> dict:
         """
