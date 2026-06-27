@@ -6,7 +6,7 @@
 
 
 Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about your [Letterboxd](https://letterboxd.com) profile.  
-*Note: this software is being updated to version 2.0 following breaking changes on Letterboxd.*
+*Note: this software is currently being updated to version 2.0 following breaking changes on Letterboxd.*
 
 # Features
 - Shows lists and charts of most watched directors, actors, genres and more
@@ -17,7 +17,7 @@ Letterboxd Profile Analyzer (LePrAn) is a simple tool to see statistics about yo
 # Coming soon <sup>TM</sup>
 - More statistics
 
-# Screenshots (alpha version)
+# Screenshots (work in progress)
 <img src="https://i.imgur.com/dtnQhni.png"> 
 
 <img src="https://i.imgur.com/kK3L4xJ.png"> 

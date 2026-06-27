@@ -342,16 +342,40 @@ body {
 /* --- Summary Cards --- */
 .summary-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+}
+
+/* Username card: prominent value, compact layout */
+.summary-card-username {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+}
+
+.summary-card-username .card-label {
+    font-size: 2.5rem;
+    margin-bottom: 4px;
+}
+
+.summary-card-username .card-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+}
+
+.summary-card-username .card-subtitle {
+    margin-top: 4px;
 }
 
 .summary-card {
     background: var(--gradient-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 24px;
+    padding: 10px 14px;
     text-align: center;
     transition: all var(--transition-normal);
 }
@@ -363,45 +387,37 @@ body {
 }
 
 .card-icon {
-    font-size: 2rem;
-    margin-bottom: 8px;
+    font-size: 2.5rem;
+    margin-bottom: 4px;
 }
 
 .card-value {
-    font-size: 1.8rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 4px;
 }
 
 .card-label {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .card-subtitle {
-    font-size: 1.0rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
     margin-top: 2px;
 }
 
-/* --- User Bar --- */
-.user-bar {
+/* --- Action Bar --- */
+.action-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    justify-content: center;
+    gap: 12px;
     margin-bottom: 24px;
-}
-
-.username {
-    font-weight: 500;
-    color: var(--text-primary);
 }
 
 /* --- Stats Columns (Two-Column Layout) --- */
@@ -816,6 +832,10 @@ body {
     .summary-cards {
         grid-template-columns: repeat(3, 1fr);
     }
+    
+    .action-bar {
+        justify-content: center;
+    }
 }
 
 @media (max-width: 600px) {
@@ -839,9 +859,9 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .user-bar {
-        flex-wrap: wrap;
-        gap: 10px;
+    .action-bar {
+        flex-direction: column;
+        align-items: center;
     }
 }
 

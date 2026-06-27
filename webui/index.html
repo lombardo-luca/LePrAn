@@ -86,29 +86,31 @@
             <section class="results-section" x-show="hasResults">
                 <!-- Summary Cards -->
                 <div class="summary-cards">
+                    <!-- Films Watched -->
                     <div class="summary-card">
                         <div class="card-icon">🎬</div>
                         <div class="card-value" x-text="stats.filmsCount"></div>
                         <div class="card-label">Films Watched</div>
                         <div class="card-subtitle" x-show="filmsThisYear > 0" x-text="filmsThisYear + ' this year'"></div>
                     </div>
+                    <!-- Username -->
+                    <div class="summary-card summary-card-username">
+                        <div class="card-label" style="margin-bottom: 4px;">👤</div>
+                        <div class="card-value" style="font-size: 1.4rem;" x-text="stats.username"></div>
+                        <div class="card-subtitle" x-show="stats.scrapedAt" x-text="'Scraped at ' + stats.scrapedAt"></div>
+                    </div>
+                    <!-- Total Runtime -->
                     <div class="summary-card">
                         <div class="card-icon">⏱️</div>
                         <div class="card-value" x-text="stats.totalRuntime"></div>
                         <div class="card-label">Total Runtime</div>
                         <div class="card-subtitle" x-text="formatDays(stats.totalDays)"></div>
                     </div>
-                    <div class="summary-card">
-                        <div class="card-icon">📅</div>
-                        <div class="card-value" x-text="stats.scrapedAt || 'N/A'"></div>
-                        <div class="card-label">Scraped At</div>
-                    </div>
                 </div>
 
-                <!-- User Info Bar -->
-                <div class="user-bar">
-                    <span class="username">👤 <span x-text="'User: ' + stats.username"></span></span>
-                    <button @click="resetToInput()" class="btn btn-small btn-outline">New Analysis</button>
+                <!-- Action Buttons Bar -->
+                <div class="action-bar">
+                    <button @click="resetToInput()" class="btn btn-small btn-outline">🔄 New Analysis</button>
                     <button @click="saveResults()" class="btn btn-small btn-primary">💾 Save Results</button>
                 </div>
 
