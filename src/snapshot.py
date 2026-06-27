@@ -71,7 +71,7 @@ class AnalyticsData:
     # Basic counts
     total_films: int = 0
     total_hours: float = 0.0
-    total_days: float = 0.0
+    # total_days is derived from total_hours (days = hours / 24) - NOT stored in snapshot
     
     # Category statistics
     language_stats: Dict[str, int] = field(default_factory=dict)
@@ -206,7 +206,7 @@ class ApplicationSnapshot:
             'analytics': {
                 'total_films': self.analytics.total_films,
                 'total_hours': self.analytics.total_hours,
-                'total_days': self.analytics.total_days,
+                # total_days is derived from total_hours (days = hours / 24) - NOT stored
                 'language_stats': self.analytics.language_stats,
                 'country_stats': self.analytics.country_stats,
                 'genre_stats': self.analytics.genre_stats,
@@ -316,7 +316,7 @@ class ApplicationSnapshot:
         snapshot.analytics = AnalyticsData(
             total_films=analytics_data.get('total_films', 0),
             total_hours=analytics_data.get('total_hours', 0.0),
-            total_days=analytics_data.get('total_days', 0.0),
+            # total_days is derived from total_hours (days = hours / 24) - NOT loaded from snapshot
             language_stats=analytics_data.get('language_stats', {}),
             country_stats=analytics_data.get('country_stats', {}),
             genre_stats=analytics_data.get('genre_stats', {}),

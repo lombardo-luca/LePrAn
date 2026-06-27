@@ -69,7 +69,7 @@ class SnapshotExporter:
             analytics_obj = AnalyticsData(
                 total_films=analytics.get('total_films', self.stats_data.films_count),
                 total_hours=analytics.get('total_hours', self.stats_data.total_hours),
-                total_days=analytics.get('total_days', self.stats_data.total_days),
+                # total_days is derived from total_hours (days = hours / 24) - NOT stored
                 language_stats=analytics.get('language_stats', dict(self.stats_data.lang_dict)),
                 country_stats=analytics.get('country_stats', dict(self.stats_data.country_dict)),
                 genre_stats=analytics.get('genre_stats', dict(self.stats_data.genre_dict)),
@@ -93,10 +93,11 @@ class SnapshotExporter:
             )
         else:
             # Build analytics from stats_data
+            # total_days is derived from total_hours (days = hours / 24) - NOT stored
             analytics_obj = AnalyticsData(
                 total_films=self.stats_data.films_count,
                 total_hours=self.stats_data.total_hours,
-                total_days=self.stats_data.total_days,
+                # total_days is derived from total_hours (days = hours / 24) - NOT stored
                 language_stats=dict(self.stats_data.lang_dict),
                 country_stats=dict(self.stats_data.country_dict),
                 genre_stats=dict(self.stats_data.genre_dict),

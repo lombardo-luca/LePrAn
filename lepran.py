@@ -519,10 +519,11 @@ class WebAPI:
             decades = {item['name']: item['count'] for item in data.get('decades', [])}
             
             # Update stats data with saved values
+            # total_days is derived from total_hours (days = hours / 24) - single source of truth
             stats = self.app_context.stats_data
             stats.films_count = data.get('films_count', 0)
             stats.total_hours = data.get('total_hours', 0.0)
-            stats.total_days = data.get('total_days', 0.0)
+            stats.total_days = stats.total_hours / 24.0
             stats.gui_scraped_at = data.get('scraped_at', '')
             
             # Update dictionaries
@@ -540,10 +541,11 @@ class WebAPI:
             stats.decade_dict.update(decades)
             
             # Build analytics dict
+            # total_days is derived from total_hours (days = hours / 24) - NOT stored
             analytics = {
                 'total_films': data.get('films_count', 0),
                 'total_hours': data.get('total_hours', 0.0),
-                'total_days': data.get('total_days', 0.0),
+                # total_days is computed from total_hours, NOT stored in snapshot
                 'country_stats': countries,
                 'language_stats': languages,
                 'genre_stats': genres,

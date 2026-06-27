@@ -197,11 +197,14 @@ class SnapshotImporter:
         """Restore state after rebuilding from film records."""
         analytics = snapshot.analytics
         
+        # Compute total_days from total_hours (single source of truth)
+        total_days = analytics.total_hours / 24.0
+        
         # Set meta data
         self.stats_data.set_meta_data(
             films_count=analytics.total_films,
             total_hours=analytics.total_hours,
-            total_days=analytics.total_days,
+            total_days=total_days,
             scraped_at=analytics.scraped_at
         )
         
@@ -222,6 +225,9 @@ class SnapshotImporter:
     def _restore_from_analytics(self, snapshot: ApplicationSnapshot) -> dict:
         """Restore state directly from pre-computed analytics."""
         analytics = snapshot.analytics
+        
+        # Compute total_days from total_hours (single source of truth)
+        total_days = analytics.total_hours / 24.0
         
         # Restore dictionaries directly
         self.stats_data.lang_dict.clear()
@@ -273,7 +279,7 @@ class SnapshotImporter:
         self.stats_data.set_meta_data(
             films_count=analytics.total_films,
             total_hours=analytics.total_hours,
-            total_days=analytics.total_days,
+            total_days=total_days,
             scraped_at=analytics.scraped_at
         )
         

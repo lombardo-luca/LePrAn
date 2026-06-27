@@ -466,12 +466,13 @@ function lepranApp() {
                         
                         // Update stats display from imported data
                         const savedTotalHours = r.total_hours || this.stats.totalHours || 0;
+                        const savedTotalDays = r.total_days != null ? r.total_days : savedTotalHours / 24;
                         this.stats = {
                             username: r.username || this.stats.username || 'Imported',
                             filmsCount: r.films_count || this.stats.filmsCount || 0,
                             totalRuntime: this.formatRuntime(savedTotalHours),
                             totalHours: savedTotalHours,
-                            totalDays: savedTotalHours / 24,
+                            totalDays: savedTotalDays,
                             scrapedAt: r.scraped_at || this.stats.scrapedAt || 'Imported'
                         };
                         
@@ -550,12 +551,13 @@ function lepranApp() {
             // Parse result data
             if (result.success) {
                 const totalHours = result.total_hours || 0;
+                const totalDays = result.total_days != null ? result.total_days : totalHours / 24;
                 this.stats = {
                     username: result.username || 'Unknown',
                     filmsCount: result.films_count || 0,
                     totalRuntime: this.formatRuntime(totalHours),
                     totalHours: totalHours,
-                    totalDays: totalHours / 24,
+                    totalDays: totalDays,
                     scrapedAt: result.scraped_at || new Date().toLocaleDateString()
                 };
                 
@@ -716,11 +718,10 @@ function lepranApp() {
             return `${h}h ${m}m`;
         },
         
-        // Format total hours into days (display-only)
+        // Format total days into readable string (display-only)
         formatDays(days) {
             if (!days || days === 0) return '~ 0.00 days';
-            const d = days / 24;
-            return '~ ' + d.toFixed(2) + ' days';
+            return '~ ' + days.toFixed(2) + ' days';
         },
         
         // Format ETA in seconds to readable string (e.g., "2m30s", "1h15m", "45s")
