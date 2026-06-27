@@ -40,6 +40,14 @@
                         </div>
                     </div>
 
+                    <!-- Import Options -->
+                    <div class="import-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" x-model="importWatchlist" :disabled="isAnalyzing">
+                            <span>Import Watchlist</span>
+                        </label>
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="button-group">
                         <button @click="loadSavedSnapshot()" :disabled="isAnalyzing" 

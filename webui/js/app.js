@@ -14,6 +14,9 @@ function lepranApp() {
          analysisProgress: 'Starting...',
          hasResults: false,
          
+         // Import options (default: watchlist is enabled = opt-out behavior)
+         importWatchlist: true,
+         
           // Detailed progress stats
           filmsProcessed: 0,
           filmsTotal: 0,
@@ -468,8 +471,8 @@ function lepranApp() {
                     this.selectedFolderName = folderPath.split(/[\\/]/).pop();
                     this.analysisProgress = 'Validating folder...';
                     
-                    // Start analysis with the selected folder
-                    window.pywebview.api.analyze_folder(folderPath).then((result) => {
+                    // Start analysis with the selected folder and importWatchlist flag
+                    window.pywebview.api.analyze_folder(folderPath, this.importWatchlist).then((result) => {
                         if (result.status === 'started') {
                             // Start polling for progress
                             this._startProgressPolling();
@@ -1000,9 +1003,9 @@ function lepranApp() {
             return this.dataSource === 'watchlist' ? 'Watchlist' : 'Watched';
         },
         
-        // Check if watchlist data is available (loaded from analysis)
+        // Check if watchlist data is available (loaded from analysis AND import was requested)
         get hasWatchlistData() {
-            return this.watchlistStats && this.watchlistStats.filmsCount > 0;
+            return this.importWatchlist && this.watchlistStats && this.watchlistStats.filmsCount > 0;
         },
         
         // Reset to input screen for new analysis
@@ -1016,6 +1019,7 @@ function lepranApp() {
              this.hasResults = false;
              this.selectedFolder = null;
              this.selectedFolderName = '';
+             this.importWatchlist = true; // Reset to default
              this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
             this.rawDiaryData = { weekday: [], month: [], year: [] };
@@ -1057,22 +1061,24 @@ function lepranApp() {
                             boxoffice: Object.fromEntries(this.rawFinancialData.boxoffice.map(i => [i.name, i.count])),
                             budget_range: Object.fromEntries(this.rawBudgetRangeData.map(i => [i.range, i.count]))
                         },
-                        // Watchlist analytics
-                        watchlist_data: {
-                            films_count: this.watchlistStats.filmsCount,
-                            total_hours: this.watchlistStats.totalHours,
-                            countries: this.watchlistData.countries,
-                            languages: this.watchlistData.languages,
-                            genres: this.watchlistData.genres,
-                            directors: this.watchlistData.directors,
-                            actors: this.watchlistData.actors,
-                            decades: this.watchlistData.decades,
-                            financial_data: {
-                                budget: Object.fromEntries(this.watchlistFinancialData.budget.map(i => [i.name, i.count])),
-                                boxoffice: Object.fromEntries(this.watchlistFinancialData.boxoffice.map(i => [i.name, i.count])),
-                                budget_range: Object.fromEntries(this.watchlistBudgetRangeData.map(i => [i.range, i.count]))
+                        // Watchlist analytics (only if import was enabled)
+                        ...(this.importWatchlist ? {
+                            watchlist_data: {
+                                films_count: this.watchlistStats.filmsCount,
+                                total_hours: this.watchlistStats.totalHours,
+                                countries: this.watchlistData.countries,
+                                languages: this.watchlistData.languages,
+                                genres: this.watchlistData.genres,
+                                directors: this.watchlistData.directors,
+                                actors: this.watchlistData.actors,
+                                decades: this.watchlistData.decades,
+                                financial_data: {
+                                    budget: Object.fromEntries(this.watchlistFinancialData.budget.map(i => [i.name, i.count])),
+                                    boxoffice: Object.fromEntries(this.watchlistFinancialData.boxoffice.map(i => [i.name, i.count])),
+                                    budget_range: Object.fromEntries(this.watchlistBudgetRangeData.map(i => [i.range, i.count]))
+                                }
                             }
-                        }
+                        } : {})
                     });
                     
                     if (result && result.success) {

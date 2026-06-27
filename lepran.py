@@ -173,20 +173,27 @@ class WebAPI:
             logger.error(f"Error selecting folder: {e}")
             return {'success': False, 'error': str(e)}
     
-    def analyze_folder(self, folder_path):
+    def analyze_folder(self, folder_path, import_watchlist=True):
         """Analyze a folder containing Letterboxd export CSV files.
         
         Expected folder structure:
             folder/
             ├── watched.csv      (REQUIRED)
             ├── diary.csv        (REQUIRED)
-            └── watchlist.csv    (OPTIONAL)
+            └── watchlist.csv    (OPTIONAL, required only if import_watchlist=True)
+        
+        Args:
+            folder_path: Path to the Letterboxd export folder.
+            import_watchlist: Whether to import and process watchlist.csv (default True = opt-out).
         
         Starts analysis in a background thread and returns immediately.
         Progress can be polled via get_analysis_progress().
         When complete, the result is available via get_analysis_progress()['result'].
         """
         try:
+            # Store watchlist import flag for conditional result building
+            self._import_watchlist = import_watchlist
+            
             # Reset progress state
             self._analysis_progress = 0
             self._analysis_status = 'Validating folder...'
@@ -200,7 +207,7 @@ class WebAPI:
             def run_analysis():
                 try:
                     coordinator = FolderScraperCoordinator(scraper_with_callback, self.app_context)
-                    coordinator.scrape_folder(folder_path, progress_callback=self._update_progress)
+                    coordinator.scrape_folder(folder_path, import_watchlist=import_watchlist, progress_callback=self._update_progress)
                     
                     # Store coordinator reference for snapshot export
                     self._coordinator = coordinator
@@ -291,18 +298,19 @@ class WebAPI:
         return compute_budget_range_buckets(film_budget_data)
     
     def _build_result(self):
-        """Build result dictionary from current stats data."""
+        """Build result dictionary from current stats data.
+        
+        Watchlist data is only included if import_watchlist was True during analysis.
+        """
         stats = self.app_context.stats_data
         
-        # Compute budget range buckets
+        # Compute budget range buckets for watched
         budget_data = dict(stats.film_budget_data) if hasattr(stats, 'film_budget_data') else {}
         budget_range = self._compute_budget_range_buckets(budget_data)
         
-        # Compute watchlist budget range buckets
-        wl_budget_data = dict(stats.wl_film_budget_data) if hasattr(stats, 'wl_film_budget_data') else {}
-        wl_budget_range = self._compute_budget_range_buckets(wl_budget_data)
+        include_watchlist = getattr(self, '_import_watchlist', True)
         
-        return {
+        result = {
             'success': True,
             'username': self.login_input,
             'films_count': stats.films_count,
@@ -327,9 +335,16 @@ class WebAPI:
                 'budget': budget_data,
                 'boxoffice': dict(stats.film_boxoffice_data) if hasattr(stats, 'film_boxoffice_data') else {},
                 'budget_range': budget_range
-            },
-            # Watchlist analytics (separate dataset, mirrors watched fields)
-            'watchlist_data': {
+            }
+        }
+        
+        # Watchlist analytics (only if import was enabled)
+        if include_watchlist:
+            # Compute watchlist budget range buckets
+            wl_budget_data = dict(stats.wl_film_budget_data) if hasattr(stats, 'wl_film_budget_data') else {}
+            wl_budget_range = self._compute_budget_range_buckets(wl_budget_data)
+            
+            result['watchlist_data'] = {
                 'films_count': stats.wl_films_count,
                 'total_hours': stats.wl_total_hours,
                 'countries': json.dumps(stats.wl_country_dict),
@@ -344,7 +359,8 @@ class WebAPI:
                     'budget_range': wl_budget_range
                 }
             }
-        }
+        
+        return result
     
     def load_snapshot(self):
         """Open file dialog and load a saved LePrAn JSON snapshot.

@@ -31,11 +31,13 @@ class FolderImportValidator:
     REQUIRED_FILES = ['watched.csv', 'diary.csv']
     SUPPORTED_FILES = ['watched.csv', 'diary.csv', 'watchlist.csv']
 
-    def validate_folder(self, folder_path: str) -> list[str]:
+    def validate_folder(self, folder_path: str, import_watchlist: bool = True) -> list[str]:
         """Validate that the folder exists and contains all required files.
 
         Args:
             folder_path: Path to the folder to validate.
+            import_watchlist: Whether watchlist import is enabled (default True = opt-out).
+                              When False, watchlist.csv is optional and not required.
 
         Returns:
             List of found supported CSV files.
@@ -52,15 +54,22 @@ class FolderImportValidator:
         if not folder.is_dir():
             raise ImportValidationError(f"Path is not a directory: {folder_path}")
 
+        # Determine required files based on import_watchlist flag
+        # watched.csv and diary.csv are always required
+        files_to_check = ['watched.csv', 'diary.csv']
+        if import_watchlist:
+            files_to_check.append('watchlist.csv')
+
         # Check for required files
         found_files = []
         missing_files = []
 
-        for filename in self.SUPPORTED_FILES:
+        for filename in files_to_check:
             file_path = folder / filename
             if file_path.exists() and file_path.is_file():
                 found_files.append(filename)
-            elif filename in self.REQUIRED_FILES:
+            elif filename in ['watched.csv', 'diary.csv']:
+                # These are always required
                 missing_files.append(filename)
 
         # Check for any CSV files at all
@@ -235,11 +244,13 @@ class FolderDataLoader:
         self.validator = FolderImportValidator()
         self.parser = CSVFileParser()
 
-    def load_folder(self, folder_path: str) -> dict:
+    def load_folder(self, folder_path: str, import_watchlist: bool = True) -> dict:
         """Load all supported CSV files from the folder.
 
         Args:
             folder_path: Path to the validated folder.
+            import_watchlist: Whether watchlist import is enabled (default True = opt-out).
+                              When False, watchlist.csv is not required and will be None.
 
         Returns:
             Dictionary with structure:
@@ -250,8 +261,8 @@ class FolderDataLoader:
                 'found_files': ['watched.csv', 'diary.csv', ...]
             }
         """
-        # Validate folder
-        found_files = self.validator.validate_folder(folder_path)
+        # Validate folder (pass import_watchlist flag)
+        found_files = self.validator.validate_folder(folder_path, import_watchlist=import_watchlist)
 
         result = {
             'watched': [],
@@ -273,11 +284,12 @@ class FolderDataLoader:
             result['diary'] = self.parser.parse_csv_file(str(diary_path))
             logger.info(f"Loaded {len(result['diary'])} entries from diary.csv")
 
-        # Parse watchlist.csv (optional)
-        watchlist_path = Path(folder_path) / 'watchlist.csv'
-        if 'watchlist.csv' in found_files:
-            result['watchlist'] = self.parser.parse_csv_file(str(watchlist_path))
-            logger.info(f"Loaded {len(result['watchlist'])} entries from watchlist.csv")
+        # Parse watchlist.csv (optional - only if import_watchlist is True AND file exists)
+        if import_watchlist:
+            watchlist_path = Path(folder_path) / 'watchlist.csv'
+            if 'watchlist.csv' in found_files:
+                result['watchlist'] = self.parser.parse_csv_file(str(watchlist_path))
+                logger.info(f"Loaded {len(result['watchlist'])} entries from watchlist.csv")
 
         return result
 
@@ -427,13 +439,15 @@ class FolderScraperCoordinator:
             except IOError as e:
                 logger.warning(f"Failed to read raw watchlist.csv: {e}")
     
-    def scrape_folder(self, folder_path: str, progress_callback=None) -> dict:
+    def scrape_folder(self, folder_path: str, import_watchlist: bool = True, progress_callback=None) -> dict:
         """Scrape all films from a validated folder.
 
         Processes watched.csv first, then diary.csv separately.
+        Watchlist is processed only if import_watchlist is True AND watchlist.csv exists.
 
         Args:
             folder_path: Path to the validated folder.
+            import_watchlist: Whether to import and process watchlist.csv (default True = opt-out).
             progress_callback: Optional callback(percent, status) for progress updates.
 
         Returns:
@@ -463,12 +477,13 @@ class FolderScraperCoordinator:
         if progress_callback:
             self.scraper.progress_callback = progress_callback
 
-        # Load folder data
-        logger.info(f"Loading folder: {folder_path}")
-        folder_data = self.data_loader.load_folder(folder_path)
+        # Load folder data (pass import_watchlist flag for conditional validation)
+        logger.info(f"Loading folder: {folder_path} (import_watchlist={import_watchlist})")
+        folder_data = self.data_loader.load_folder(folder_path, import_watchlist=import_watchlist)
         
-        # Load raw CSV content for snapshot preservation
-        self._load_raw_csv_content(folder_path)
+        # Load raw CSV content for snapshot preservation (only if watchlist is being imported)
+        if import_watchlist:
+            self._load_raw_csv_content(folder_path)
 
         # Reset data
         self.app_context.stats_data.reset()
@@ -487,8 +502,8 @@ class FolderScraperCoordinator:
         self._watchlist_data = []
         self._main_film_keys = set()
 
-        # Determine total steps: diary + watched + watchlist (if present) + compute analytics
-        has_watchlist = folder_data['watchlist'] is not None
+        # Determine total steps: diary + watched + watchlist (if enabled AND present) + compute analytics
+        has_watchlist = import_watchlist and folder_data['watchlist'] is not None
         total_steps = 3 + (1 if has_watchlist else 0)  # diary, watched, watchlist scrape, compute analytics
 
         # Step 1: Process diary.csv FIRST (contains all films + date watched metadata)

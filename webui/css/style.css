@@ -172,6 +172,37 @@ body {
     pointer-events: none;
 }
 
+/* --- Import Options --- */
+.import-options {
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-blue);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.checkbox-label span {
+    font-weight: 500;
+}
+
 /* --- Buttons --- */
 .btn {
     padding: 10px 20px;
