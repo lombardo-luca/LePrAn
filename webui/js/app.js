@@ -41,9 +41,9 @@ function lepranApp() {
              scrapedAt: ''
          },
         
-         // Panel state (moved to parent so both columns share the same scope)
-         leftPanel: 'countries',
-         rightPanel: 'actors',
+          // Panel state (moved to parent so both columns share the same scope)
+          leftPanel: 'countries',
+          rightPanel: 'directors',
          
          // Display limit for all categories
          DISPLAY_LIMIT: 100,

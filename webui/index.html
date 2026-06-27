@@ -282,48 +282,16 @@
                      <div class="stat-column">
                          <div class="column-header">
                              <span class="column-title">👥 People</span>
-                             <div class="column-selector">
-                                 <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
-                                         @click="rightPanel = 'actors'">⭐ Actors</button>
-                                 <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
-                                         @click="rightPanel = 'directors'">🎬 Directors</button>
-                             </div>
+                              <div class="column-selector">
+                                  <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
+                                          @click="rightPanel = 'directors'">🎬 Directors</button>
+                                  <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
+                                          @click="rightPanel = 'actors'">⭐ Actors</button>
+                              </div>
                          </div>
-                         <div class="stat-panel">
-                             <!-- Actors Content -->
-                             <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
-                                <div class="table-container">
-                                    <table class="data-table">
-                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
-                                        <tbody>
-                                            <template x-for="(item, idx) in sortedData.actors" :key="idx">
-                                                <tr>
-                                                    <td x-text="idx + 1"></td>
-                                                    <td x-text="item.name"></td>
-                                                    <td x-text="item.count"></td>
-                                                    <td x-text="item.percent"></td>
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <!-- Show All/Less Toggle -->
-                                <div class="actors-toggle-container" x-show="rawData.actors.length > 100">
-                                    <button @click="toggleActors()" class="btn btn-small btn-outline actors-toggle-btn">
-                                        <span x-show="!actorsExpanded">Show All</span>
-                                        <span x-show="actorsExpanded">Show Less</span>
-                                    </button>
-                                    <span class="actors-count-info" x-show="!actorsExpanded && rawData.actors.length > 100">
-                                        Showing top 100 of <span x-text="rawData.actors.length"></span> actors
-                                    </span>
-                                </div>
-                                <div class="chart-container">
-                                    <canvas id="actorsChart"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Directors Content -->
-                            <div class="panel-content" x-show="rightPanel === 'directors'" x-transition>
+                          <div class="stat-panel">
+                              <!-- Directors Content -->
+                              <div class="panel-content" x-show="rightPanel === 'directors'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
                                         <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
@@ -352,12 +320,44 @@
                                 <div class="chart-container">
                                     <canvas id="directorsChart"></canvas>
                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
+                              </div>
 
-                  <!-- Bottom Row: Diary + Finance -->
+                              <!-- Actors Content -->
+                              <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
+                                 <div class="table-container">
+                                     <table class="data-table">
+                                         <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                         <tbody>
+                                             <template x-for="(item, idx) in sortedData.actors" :key="idx">
+                                                 <tr>
+                                                     <td x-text="idx + 1"></td>
+                                                     <td x-text="item.name"></td>
+                                                     <td x-text="item.count"></td>
+                                                     <td x-text="item.percent"></td>
+                                                 </tr>
+                                             </template>
+                                         </tbody>
+                                     </table>
+                                 </div>
+                                 <!-- Show All/Less Toggle -->
+                                 <div class="actors-toggle-container" x-show="rawData.actors.length > 100">
+                                     <button @click="toggleActors()" class="btn btn-small btn-outline actors-toggle-btn">
+                                         <span x-show="!actorsExpanded">Show All</span>
+                                         <span x-show="actorsExpanded">Show Less</span>
+                                     </button>
+                                     <span class="actors-count-info" x-show="!actorsExpanded && rawData.actors.length > 100">
+                                         Showing top 100 of <span x-text="rawData.actors.length"></span> actors
+                                     </span>
+                                 </div>
+                                 <div class="chart-container">
+                                     <canvas id="actorsChart"></canvas>
+                                 </div>
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+
+                   <!-- Bottom Row: Diary + Finance -->
                  <div class="analytics-columns">
                       <!-- Left Bottom: Diary -->
                      <div class="analytics-column">
