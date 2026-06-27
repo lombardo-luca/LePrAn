@@ -117,23 +117,23 @@
                     <!-- Left Column: Countries, Languages, Genres -->
                     <div class="stat-column">
                         <div class="column-header">
-                            <span class="column-title">📊 Film</span>
-                            <div class="column-header-actions">
+                            <div class="title-row">
+                                <span class="column-title">📊 Film</span>
                                 <button @click="togglePanelDataSource('films')" 
                                         :class="['source-toggle-btn', panelDataSources.films]" 
                                         x-show="hasWatchlistData"
-                                        x-text="panelDataSources.films === 'watchlist' ? '📋 Watchlist' : '🎬 Watched'">
+                                        x-text="panelDataSources.films === 'watchlist' ? '↻ Switch to Watched' : '↻ Switch to Watchlist'">
                                 </button>
-                                <div class="column-selector">
-                                    <button :class="['selector-btn', { active: leftPanel === 'countries' }]" 
-                                            @click="leftPanel = 'countries'">🌍 Countries</button>
-                                    <button :class="['selector-btn', { active: leftPanel === 'languages' }]" 
-                                            @click="leftPanel = 'languages'">🗣️ Languages</button>
-                                    <button :class="['selector-btn', { active: leftPanel === 'genres' }]" 
-                                            @click="leftPanel = 'genres'">🎭 Genres</button>
-                                    <button :class="['selector-btn', { active: leftPanel === 'decades' }]" 
-                                            @click="leftPanel = 'decades'">📅 Decades</button>
-                                </div>
+                            </div>
+                            <div class="column-selector">
+                                <button :class="['selector-btn', { active: leftPanel === 'countries' }]" 
+                                        @click="leftPanel = 'countries'">🌍 Countries</button>
+                                <button :class="['selector-btn', { active: leftPanel === 'languages' }]" 
+                                        @click="leftPanel = 'languages'">🗣️ Languages</button>
+                                <button :class="['selector-btn', { active: leftPanel === 'genres' }]" 
+                                        @click="leftPanel = 'genres'">🎭 Genres</button>
+                                <button :class="['selector-btn', { active: leftPanel === 'decades' }]" 
+                                        @click="leftPanel = 'decades'">📅 Decades</button>
                             </div>
                         </div>
                         <div class="stat-panel">
@@ -285,24 +285,24 @@
                         </div>
                     </div>
 
-                     <!-- Right Column: Actors, Directors -->
-                      <div class="stat-column">
-                          <div class="column-header">
-                              <span class="column-title">👥 People</span>
-                              <div class="column-header-actions">
-                                  <button @click="togglePanelDataSource('people')" 
-                                          :class="['source-toggle-btn', panelDataSources.people]" 
-                                          x-show="hasWatchlistData"
-                                          x-text="panelDataSources.people === 'watchlist' ? '📋 Watchlist' : '🎬 Watched'">
-                                  </button>
-                                  <div class="column-selector">
-                                     <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
-                                             @click="rightPanel = 'directors'">🎬 Directors</button>
-                                     <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
-                                             @click="rightPanel = 'actors'">⭐ Actors</button>
-                                 </div>
-                             </div>
-                         </div>
+                      <!-- Right Column: Actors, Directors -->
+                       <div class="stat-column">
+                           <div class="column-header">
+                               <div class="title-row">
+                                   <span class="column-title">👥 People</span>
+                                   <button @click="togglePanelDataSource('people')" 
+                                           :class="['source-toggle-btn', panelDataSources.people]" 
+                                           x-show="hasWatchlistData"
+                                           x-text="panelDataSources.people === 'watchlist' ? '↻ Switch to Watched' : '↻ Switch to Watchlist'">
+                                   </button>
+                               </div>
+                               <div class="column-selector">
+                                   <button :class="['selector-btn', { active: rightPanel === 'directors' }]" 
+                                           @click="rightPanel = 'directors'">🎬 Directors</button>
+                                   <button :class="['selector-btn', { active: rightPanel === 'actors' }]" 
+                                           @click="rightPanel = 'actors'">⭐ Actors</button>
+                               </div>
+                           </div>
                           <div class="stat-panel">
                               <!-- Directors Content -->
                               <div class="panel-content" x-show="rightPanel === 'directors'" x-transition>
@@ -376,7 +376,9 @@
                       <!-- Left Bottom: Diary -->
                      <div class="analytics-column">
                          <div class="column-header">
-                              <span class="column-title">📔 Diary</span>
+                              <div class="title-row">
+                                   <span class="column-title">📔 Diary</span>
+                              </div>
                              <div class="column-selector">
                                  <button :class="['selector-btn', { active: diaryAggregationMode === 'weekday' }]" 
                                          @click="diaryAggregationMode = 'weekday'; onDiaryModeChange()">📅 Weekday</button>
@@ -431,25 +433,26 @@
                          </div>
                      </div>
 
-                       <!-- Right Bottom: Finance -->
-                      <div class="analytics-column">
-                                   <div class="column-header">
-                                        <span class="column-title">💰 Finance</span>
-                                       <div class="column-header-actions">
-                                           <button @click="togglePanelDataSource('finance')" 
-                                                   :class="['source-toggle-btn', panelDataSources.finance]" 
-                                                   x-show="hasWatchlistData"
-                                                   x-text="panelDataSources.finance === 'watchlist' ? '📋 Watchlist' : '💰 Watched'">
-                                           </button>
-                                           <div class="column-selector">
-                                          <button :class="['selector-btn', { active: financialViewMode === 'budget' }]" 
-                                                  @click="financialViewMode = 'budget'; onFinancialModeChange()">💵 Budget</button>
-                                          <button :class="['selector-btn', { active: financialViewMode === 'budget_range' }]" 
-                                                  @click="financialViewMode = 'budget_range'; onFinancialModeChange()">📊 Budget Range</button>
-                                          <button :class="['selector-btn', { active: financialViewMode === 'boxoffice' }]" 
-                                                  @click="financialViewMode = 'boxoffice'; onFinancialModeChange()">🎬 Box Office</button>
-                                      </div>
-                                  </div>
+                        <!-- Right Bottom: Finance -->
+                       <div class="analytics-column">
+                                    <div class="column-header">
+                                         <div class="title-row">
+                                             <span class="column-title">💰 Finance</span>
+                                             <button @click="togglePanelDataSource('finance')" 
+                                                     :class="['source-toggle-btn', panelDataSources.finance]" 
+                                                     x-show="hasWatchlistData"
+                                                     x-text="panelDataSources.finance === 'watchlist' ? '↻ Switch to Watched' : '↻ Switch to Watchlist'">
+                                             </button>
+                                         </div>
+                                         <div class="column-selector">
+                                             <button :class="['selector-btn', { active: financialViewMode === 'budget' }]" 
+                                                     @click="financialViewMode = 'budget'; onFinancialModeChange()">💵 Budget</button>
+                                             <button :class="['selector-btn', { active: financialViewMode === 'budget_range' }]" 
+                                                     @click="financialViewMode = 'budget_range'; onFinancialModeChange()">📊 Budget Range</button>
+                                             <button :class="['selector-btn', { active: financialViewMode === 'boxoffice' }]" 
+                                                     @click="financialViewMode = 'boxoffice'; onFinancialModeChange()">🎬 Box Office</button>
+                                         </div>
+                                     </div>
                                   <div class="stat-panel">
                                       <div class="panel-content" x-transition>
                                           <!-- Budget Range Mode -->

@@ -420,19 +420,28 @@ body {
 .column-header {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 16px;
+    gap: 6px;
+    padding: 12px 16px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-bottom: none;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
+/* --- Title Row (inline title + source toggle) --- */
+.title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
 .column-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    text-align: center;
+    text-align: left;
+    flex-shrink: 0;
 }
 
 .column-selector {
@@ -440,25 +449,18 @@ body {
     gap: 6px;
 }
 
-/* --- Column Header Actions (wrapper for source toggle + selector) --- */
-.column-header-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
 /* --- Source Toggle Button (Watched/Watchlist) --- */
 .source-toggle-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 6px 12px;
+    flex-shrink: 0;
+    padding: 4px 10px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
