@@ -68,6 +68,24 @@ class WebAPI:
         self._films_total = 0
         self._films_speed = 0.0
         self._eta_seconds = 0.0
+
+    def check_tmdb_key(self):
+        """Check if TMDB API key is configured."""
+        has_key = self.app_context.config.has_tmdb_api_key()
+        return {'has_key': has_key}
+
+    def save_tmdb_api_key(self, api_key):
+        """Save TMDB API key."""
+        try:
+            self.app_context.config.save_tmdb_api_key(api_key)
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def validate_tmdb_api_key(self, api_key):
+        """Validate TMDB API key."""
+        is_valid, error = self.app_context.config.validate_tmdb_api_key(api_key)
+        return {'valid': is_valid, 'error': error}
     
     @staticmethod
     def _read_username_from_profile_csv(folder_path: str) -> str:
@@ -191,6 +209,10 @@ class WebAPI:
         When complete, the result is available via get_analysis_progress()['result'].
         """
         try:
+            # Check for TMDB key first
+            if not self.app_context.config.has_tmdb_api_key():
+                return {'success': False, 'error': 'tmdb_key_missing'}
+
             # Store watchlist import flag for conditional result building
             self._import_watchlist = import_watchlist
             

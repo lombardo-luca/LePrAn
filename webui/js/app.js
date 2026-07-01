@@ -14,6 +14,12 @@ function lepranApp() {
          analysisProgress: 'Starting...',
          hasResults: false,
          
+         // TMDB API Key Modal state
+         showApiKeyModal: false,
+         apiKeyInput: '',
+         apiKeyError: '',
+         apiKeyValidating: false,
+         
          // Import options (default: watchlist is enabled = opt-out behavior)
          importWatchlist: true,
          
@@ -290,8 +296,59 @@ function lepranApp() {
             // Check if we're running in pywebview
             if (window.pywebview) {
                 console.log('pywebview API detected');
+                this.checkApiKey();
             } else {
                 console.warn('Running without pywebview bridge - using demo mode');
+                window.addEventListener('pywebviewready', () => {
+                    console.log('pywebview ready event fired');
+                    this.checkApiKey();
+                });
+            }
+        },
+
+        // TMDB API Key handling
+        async checkApiKey() {
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    const result = await window.pywebview.api.check_tmdb_key();
+                    if (!result.has_key) {
+                        this.showApiKeyModal = true;
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking TMDB key:", error);
+            }
+        },
+        
+        async submitApiKey() {
+            if (!this.apiKeyInput.trim()) return;
+            
+            this.apiKeyValidating = true;
+            this.apiKeyError = '';
+            
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    // Validate key first
+                    const validation = await window.pywebview.api.validate_tmdb_api_key(this.apiKeyInput);
+                    if (!validation.valid) {
+                        this.apiKeyError = validation.error || "Invalid API key.";
+                        this.apiKeyValidating = false;
+                        return;
+                    }
+                    
+                    // Save key
+                    const result = await window.pywebview.api.save_tmdb_api_key(this.apiKeyInput);
+                    if (result.success) {
+                        this.showApiKeyModal = false;
+                    } else {
+                        this.apiKeyError = result.error || "Failed to save API key.";
+                    }
+                }
+            } catch (error) {
+                console.error("Error saving API key:", error);
+                this.apiKeyError = "An unexpected error occurred.";
+            } finally {
+                this.apiKeyValidating = false;
             }
         },
         
@@ -473,12 +530,19 @@ function lepranApp() {
                     
                     // Start analysis with the selected folder and importWatchlist flag
                     window.pywebview.api.analyze_folder(folderPath, this.importWatchlist).then((result) => {
+                        if (result.success === false && result.error === 'tmdb_key_missing') {
+                            this.isAnalyzing = false;
+                            this.showApiKeyModal = true;
+                            return;
+                        }
                         if (result.status === 'started') {
                             // Start polling for progress
                             this._startProgressPolling();
                         } else if (result.success) {
                             // Count-only result returned directly
                             this.onAnalysisComplete(result);
+                        } else {
+                            this.onAnalysisError(result.error || 'Failed to start analysis');
                         }
                     }).catch((err) => {
                         this.onAnalysisError(err);

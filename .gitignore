@@ -16,3 +16,6 @@ memory-bank/
 .clinerules/
 .env
 tests/
+cfg/
+build/
+dist/
