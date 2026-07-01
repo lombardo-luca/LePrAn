@@ -1,0 +1,224 @@
+/* ============================================
+   LePrAn - Theme System
+   Dark (default) and Light theme definitions
+   ============================================ */
+
+/* --- Shared values (fonts, spacing, borders — theme-independent) --- */
+:root {
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ============================================
+   DARK THEME (default)
+   ============================================ */
+[data-theme="dark"] {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-card: #1c2128;
+
+    --border-color: #30363d;
+    --border-hover: #58a6ff;
+
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+
+    --accent-blue: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-purple: #bc8cff;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --accent-cyan: #39d2c0;
+
+    --gradient-card: linear-gradient(145deg, #1c2128 0%, #161b22 100%);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(88, 166, 255, 0.15);
+
+    --scrollbar-track: #161b22;
+    --scrollbar-thumb: #30363d;
+    --scrollbar-thumb-hover: #6e7681;
+
+    --toggle-bg: #30363d;
+    --toggle-knob: #e6edf3;
+    --toggle-icon-active: #d29922;
+    --toggle-icon-inactive: #8b949e;
+
+    --modal-bg: rgba(13, 17, 23, 0.85);
+
+    --btn-primary-hover: #79b8ff;
+    --btn-secondary-hover: #30363d;
+    --btn-outline-hover-bg: rgba(88, 166, 255, 0.1);
+    --btn-selector-hover: #30363d;
+
+    --table-hover-bg: rgba(88, 166, 255, 0.05);
+    --table-head-bg: #21262d;
+
+    --info-bg: rgba(88, 166, 255, 0.08);
+
+    --chart-grid: rgba(48, 54, 61, 0.5);
+    --chart-axis-text: #8b949e;
+    --chart-tooltip-bg: #21262d;
+    --chart-tooltip-title: #e6edf3;
+    --chart-tooltip-body: #8b949e;
+    --chart-tooltip-border: #30363d;
+    --chart-legend-text: #8b949e;
+}
+
+/* ============================================
+   LIGHT THEME
+   ============================================ */
+[data-theme="light"] {
+    --bg-primary: #f6f8fa;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f0f3f7;
+    --bg-card: #ffffff;
+
+    --border-color: #d0d7de;
+    --border-hover: #0969da;
+
+    --text-primary: #1f2328;
+    --text-secondary: #656d76;
+    --text-muted: #8b949e;
+
+    --accent-blue: #0969da;
+    --accent-green: #1a7f37;
+    --accent-purple: #8250df;
+    --accent-orange: #bc4c00;
+    --accent-red: #cf222e;
+    --accent-cyan: #0891b2;
+
+    --gradient-card: linear-gradient(145deg, #ffffff 0%, #f6f8fa 100%);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --shadow-glow: 0 0 20px rgba(9, 105, 218, 0.1);
+
+    --scrollbar-track: #f6f8fa;
+    --scrollbar-thumb: #d0d7de;
+    --scrollbar-thumb-hover: #9ca3af;
+
+    --toggle-bg: #d0d7de;
+    --toggle-knob: #ffffff;
+    --toggle-icon-active: #0969da;
+    --toggle-icon-inactive: #8b949e;
+
+    --modal-bg: rgba(246, 248, 250, 0.85);
+
+    --btn-primary-hover: #0977ed;
+    --btn-secondary-hover: #e8ebef;
+    --btn-outline-hover-bg: rgba(9, 105, 218, 0.08);
+    --btn-selector-hover: #e8ebef;
+
+    --table-hover-bg: rgba(9, 105, 218, 0.05);
+    --table-head-bg: #f0f3f7;
+
+    --info-bg: rgba(9, 105, 218, 0.08);
+
+    --chart-grid: rgba(208, 215, 222, 0.6);
+    --chart-axis-text: #656d76;
+    --chart-tooltip-bg: #ffffff;
+    --chart-tooltip-title: #1f2328;
+    --chart-tooltip-body: #656d76;
+    --chart-tooltip-border: #d0d7de;
+    --chart-legend-text: #656d76;
+}
+
+/* ============================================
+   Global transition helper class
+   Applied to elements that should smoothly transition between themes.
+   ============================================ */
+.theme-transition {
+    transition: background-color var(--transition-normal),
+                color var(--transition-normal),
+                border-color var(--transition-normal),
+                box-shadow var(--transition-normal);
+}
+
+/* ============================================
+   Theme Toggle Button
+   ============================================ */
+.theme-toggle-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    transition: background-color var(--transition-fast),
+                border-color var(--transition-fast),
+                transform var(--transition-fast),
+                box-shadow var(--transition-fast);
+    z-index: 10;
+    padding: 0;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--btn-selector-hover);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
+    transform: scale(1.05);
+}
+
+.theme-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.theme-icon {
+    display: none;
+    line-height: 1;
+}
+
+/* Show the active icon based on theme */
+[data-theme="dark"] .theme-icon-moon {
+    display: inline;
+}
+
+[data-theme="light"] .theme-icon-sun {
+    display: inline;
+}
+
+/* ============================================
+   Custom scrollbar for both themes
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}

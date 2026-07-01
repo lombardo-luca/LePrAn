@@ -40,13 +40,16 @@ class Config:
         self.list_delim = 200
         self.scraper_profile = "tmdb"  # Only TMDB API is now supported
         self.tmdb_access_token = ""
+        self.theme = "dark"  # Default theme is dark
         self.config_dir = self._resolve_config_dir()
         self.config_path = os.path.join(self.config_dir, 'config.txt')
         self.env_path = os.path.join(self.config_dir, '.env')
+        self.theme_path = os.path.join(self.config_dir, 'theme.txt')
         # Ensure the cfg directory exists on first run
         os.makedirs(self.config_dir, exist_ok=True)
         self._load_env()
         self.load_config()
+        self._load_theme()
 
     # ------------------------------------------------------------------
     # Config directory resolution
@@ -113,6 +116,42 @@ class Config:
         except Exception:
             base_path = os.path.abspath(".")
         return os.path.join(base_path, relative_path)
+
+    # ------------------------------------------------------------------
+    # Theme persistence (cfg/theme.txt)
+    # ------------------------------------------------------------------
+
+    def _load_theme(self):
+        """Load saved theme preference from cfg/theme.txt."""
+        if os.path.exists(self.theme_path):
+            try:
+                with open(self.theme_path, 'r', encoding='utf-8') as f:
+                    value = f.read().strip()
+                    if value in ('light', 'dark'):
+                        self.theme = value
+                        logger.info(f"Theme loaded from {self.theme_path}: {self.theme}")
+                        return
+                    logger.warning(f"Invalid theme value in {self.theme_path}: {value!r}")
+            except IOError as e:
+                logger.warning(f"Error reading theme file: {e}")
+        # Default to dark
+        self.theme = "dark"
+
+    def save_theme(self, theme):
+        """Persist theme preference to cfg/theme.txt."""
+        if theme not in ('light', 'dark'):
+            raise ValueError(f"Invalid theme: {theme!r}. Must be 'light' or 'dark'.")
+        self.theme = theme
+        try:
+            with open(self.theme_path, 'w', encoding='utf-8') as f:
+                f.write(theme + '\n')
+            logger.info(f"Theme saved: {theme}")
+        except IOError as e:
+            logger.error(f"Error saving theme: {e}")
+
+    def get_theme(self):
+        """Return the current theme preference."""
+        return self.theme
 
     # ------------------------------------------------------------------
     # config.txt loading / saving

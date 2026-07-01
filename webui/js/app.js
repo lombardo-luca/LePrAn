@@ -5,23 +5,26 @@
 
 function lepranApp() {
     return {
-         // State
-          logoPath: 'assets/logo.png',
-          selectedFolder: null,
-          selectedFolderName: '',
-          isAnalyzing: false,
-         progressPercent: 0,
-         analysisProgress: 'Starting...',
-         hasResults: false,
-         
-         // TMDB API Key Modal state
-         showApiKeyModal: false,
-         apiKeyInput: '',
-         apiKeyError: '',
-         apiKeyValidating: false,
-         
-         // Import options (default: watchlist is enabled = opt-out behavior)
-         importWatchlist: true,
+          // State
+           logoPath: 'assets/logo.png',
+           selectedFolder: null,
+           selectedFolderName: '',
+           isAnalyzing: false,
+          progressPercent: 0,
+          analysisProgress: 'Starting...',
+          hasResults: false,
+          
+          // Theme state
+          currentTheme: 'dark',
+          
+          // TMDB API Key Modal state
+          showApiKeyModal: false,
+          apiKeyInput: '',
+          apiKeyError: '',
+          apiKeyValidating: false,
+          
+          // Import options (default: watchlist is enabled = opt-out behavior)
+          importWatchlist: true,
          
           // Detailed progress stats
           filmsProcessed: 0,
@@ -283,7 +286,7 @@ function lepranApp() {
                 return data;
             },
         
-        // Initialize
+         // Initialize
         init() {
             console.log('LePrAn Web UI initialized');
             
@@ -292,6 +295,9 @@ function lepranApp() {
             
             // Load saved chart type preferences from localStorage
             this.loadChartTypePreferences();
+            
+            // Load saved theme preference
+            this.loadThemePreference();
             
             // Check if we're running in pywebview
             if (window.pywebview) {
@@ -303,6 +309,80 @@ function lepranApp() {
                     console.log('pywebview ready event fired');
                     this.checkApiKey();
                 });
+            }
+        },
+        
+        // --- Theme Methods ---
+        
+        // Load theme preference from backend API
+        loadThemePreference() {
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    window.pywebview.api.get_theme().then((theme) => {
+                        if (theme === 'light' || theme === 'dark') {
+                            this.currentTheme = theme;
+                            this.applyTheme();
+                        }
+                    }).catch((err) => {
+                        console.warn('Failed to load theme preference:', err);
+                        this.applyTheme();
+                    });
+                } else {
+                    // Fallback: check localStorage (legacy)
+                    const saved = localStorage.getItem('lepran_theme');
+                    if (saved === 'light' || saved === 'dark') {
+                        this.currentTheme = saved;
+                    }
+                    this.applyTheme();
+                }
+            } catch (e) {
+                console.warn('Failed to load theme preference:', e);
+                this.applyTheme();
+            }
+        },
+        
+        // Apply theme to document
+        applyTheme() {
+            document.documentElement.setAttribute('data-theme', this.currentTheme);
+            // Save to localStorage as fallback
+            try {
+                localStorage.setItem('lepran_theme', this.currentTheme);
+            } catch (e) { /* ignore */ }
+            // Recreate all charts with new theme colors
+            this.$nextTick(() => {
+                this.recreateAllChartsForTheme();
+            });
+        },
+        
+        // Toggle between dark and light theme
+        toggleTheme() {
+            this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+            this.applyTheme();
+            // Persist to backend API
+            if (window.pywebview && window.pywebview.api) {
+                window.pywebview.api.set_theme(this.currentTheme).catch((err) => {
+                    console.warn('Failed to save theme preference:', err);
+                });
+            }
+        },
+        
+        // Recreate all charts with theme-aware colors
+        recreateAllChartsForTheme() {
+            const categoryToChartId = {
+                countries: 'countriesChart',
+                languages: 'languagesChart',
+                genres: 'genresChart',
+                directors: 'directorsChart',
+                actors: 'actorsChart',
+                decades: 'decadesChart',
+                diaryWeekday: 'diaryChart',
+                diaryMonth: 'diaryChart',
+                diaryYear: 'diaryChart',
+                financial: 'financialChart',
+                budgetRange: 'budgetRangeChart'
+            };
+            for (const category of Object.keys(categoryToChartId)) {
+                this.recreateChartForCategory(category);
             }
         },
 
@@ -450,7 +530,9 @@ function lepranApp() {
                 financial: this.sortedFinancialData,
                 budgetRange: this.sortedBudgetRangeData
             };
-            const colorMap = {
+            
+            // Theme-aware color maps
+            const darkColorMap = {
                 countries: '#58a6ff',
                 languages: '#3fb950',
                 genres: '#bc8cff',
@@ -463,6 +545,22 @@ function lepranApp() {
                 financial: '#3fb950',
                 budgetRange: '#bc8cff'
             };
+            
+            const lightColorMap = {
+                countries: '#0969da',
+                languages: '#1a7f37',
+                genres: '#8250df',
+                directors: '#bf6600',
+                actors: '#cf222e',
+                decades: '#d17900',
+                diaryWeekday: '#0969da',
+                diaryMonth: '#0969da',
+                diaryYear: '#0969da',
+                financial: '#1a7f37',
+                budgetRange: '#8250df'
+            };
+            
+            const colorMap = this.currentTheme === 'light' ? lightColorMap : darkColorMap;
             
             this._createChart({
                 id: chartId,
@@ -1279,20 +1377,51 @@ function lepranApp() {
             const financeSourceData = this.panelDataSources.finance === 'watchlist' ? this.watchlistFinancialData : this.rawFinancialData;
             const financeBudgetRangeSource = this.panelDataSources.finance === 'watchlist' ? this.watchlistBudgetRangeData : this.rawBudgetRangeData;
             
+            // Theme-aware color maps
+            const darkColorMap = {
+                countries: '#58a6ff',
+                languages: '#3fb950',
+                genres: '#bc8cff',
+                directors: '#d29922',
+                actors: '#f85149',
+                decades: '#f0883e',
+                diaryWeekday: '#58a6ff',
+                diaryMonth: '#58a6ff',
+                diaryYear: '#58a6ff',
+                financial: '#3fb950',
+                budgetRange: '#bc8cff'
+            };
+            
+            const lightColorMap = {
+                countries: '#0969da',
+                languages: '#1a7f37',
+                genres: '#8250df',
+                directors: '#bf6600',
+                actors: '#cf222e',
+                decades: '#d17900',
+                diaryWeekday: '#0969da',
+                diaryMonth: '#0969da',
+                diaryYear: '#0969da',
+                financial: '#1a7f37',
+                budgetRange: '#8250df'
+            };
+            
+            const colorMap = this.currentTheme === 'light' ? lightColorMap : darkColorMap;
+            
             const chartConfigs = [
                 // Film panel charts (use panelDataSources.films)
-                { id: 'countriesChart', data: filmSourceData.countries, color: '#58a6ff', category: 'countries' },
-                { id: 'languagesChart', data: filmSourceData.languages, color: '#3fb950', category: 'languages' },
-                { id: 'genresChart', data: filmSourceData.genres, color: '#bc8cff', category: 'genres' },
-                { id: 'decadesChart', data: filmSourceData.decades, color: '#f0883e', category: 'decades' },
+                { id: 'countriesChart', data: filmSourceData.countries, color: colorMap.countries, category: 'countries' },
+                { id: 'languagesChart', data: filmSourceData.languages, color: colorMap.languages, category: 'languages' },
+                { id: 'genresChart', data: filmSourceData.genres, color: colorMap.genres, category: 'genres' },
+                { id: 'decadesChart', data: filmSourceData.decades, color: colorMap.decades, category: 'decades' },
                 // People panel charts (use panelDataSources.people)
-                { id: 'directorsChart', data: peopleSourceData.directors, color: '#d29922', category: 'directors' },
-                { id: 'actorsChart', data: peopleSourceData.actors, color: '#f85149', category: 'actors' },
+                { id: 'directorsChart', data: peopleSourceData.directors, color: colorMap.directors, category: 'directors' },
+                { id: 'actorsChart', data: peopleSourceData.actors, color: colorMap.actors, category: 'actors' },
                 // Diary chart (always uses rawDiaryData - no toggle)
-                { id: 'diaryChart', data: this.sortedDiaryData, color: '#58a6ff', category: 'diaryWeekday' },
+                { id: 'diaryChart', data: this.sortedDiaryData, color: colorMap.diaryWeekday, category: 'diaryWeekday' },
                 // Finance panel charts (use panelDataSources.finance)
-                { id: 'financialChart', data: financeSourceData[this.financialViewMode] || [], color: '#3fb950', category: 'financial' },
-                { id: 'budgetRangeChart', data: financeBudgetRangeSource, color: '#bc8cff', category: 'budgetRange' }
+                { id: 'financialChart', data: financeSourceData[this.financialViewMode] || [], color: colorMap.financial, category: 'financial' },
+                { id: 'budgetRangeChart', data: financeBudgetRangeSource, color: colorMap.budgetRange, category: 'budgetRange' }
             ];
             
             chartConfigs.forEach(config => {

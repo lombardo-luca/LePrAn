@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LePrAn - Letterboxd Profile Analyzer</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/theme.css">
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Chart.js -->
@@ -18,6 +19,14 @@
                 <img :src="logoPath" alt="LePrAn Logo" class="header-logo">
                 <p class="header-subtitle">Letterboxd Profile Analyzer</p>
             </div>
+            <!-- Theme Toggle -->
+            <button @click="toggleTheme()" :aria-label="currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+                    class="theme-toggle-btn" id="themeToggleBtn" title="Toggle theme">
+                <span class="theme-icon theme-icon-sun" x-show="currentTheme === 'light'">☀️</span>
+                <span class="theme-icon theme-icon-moon" x-show="currentTheme === 'dark'">🌙</span>
+                <span class="theme-icon theme-icon-sun-outline" x-show="currentTheme === 'dark'">☀️</span>
+                <span class="theme-icon theme-icon-moon-outline" x-show="currentTheme === 'light'">🌙</span>
+            </button>
         </header>
 
         <!-- Main Content -->

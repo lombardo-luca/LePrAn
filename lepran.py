@@ -87,6 +87,36 @@ class WebAPI:
         is_valid, error = self.app_context.config.validate_tmdb_api_key(api_key)
         return {'valid': is_valid, 'error': error}
     
+    def get_theme(self):
+        """Get the current theme preference.
+        
+        Returns:
+            str: 'light' or 'dark'
+        """
+        return self.app_context.config.get_theme()
+    
+    def set_theme(self, theme):
+        """Set and persist the theme preference.
+        
+        Args:
+            theme (str): 'light' or 'dark'
+            
+        Returns:
+            dict: {'success': True} on success, or {'success': False, 'error': ...} on failure.
+        """
+        try:
+            self.app_context.config.save_theme(theme)
+            # Update webview background color to match theme
+            bg_color = '#f6f8fa' if theme == 'light' else '#0d1117'
+            if self._window:
+                try:
+                    self._window.set_background_color(bg_color)
+                except Exception as e:
+                    logger.debug(f"Failed to update window background color: {e}")
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
     @staticmethod
     def _read_username_from_profile_csv(folder_path: str) -> str:
         """Read the username from profile.csv in the given folder.
