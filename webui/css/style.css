@@ -1019,3 +1019,38 @@ body {
     from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ============================================
+   Workflow Divider & Primary Info Box Styles
+   ============================================ */
+
+/* Primary info box: more prominent styling for the main workflow explanation */
+.info-box-primary {
+    margin-top: 16px;
+    border-left-width: 4px;
+}
+
+/* Workflow divider: visual separator between primary and secondary workflows */
+.workflow-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+    transition: background-color var(--transition-normal);
+}
+
+.divider-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    transition: color var(--transition-normal);
+}

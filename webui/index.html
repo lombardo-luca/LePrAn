@@ -38,13 +38,13 @@
                     
                     <!-- Folder Selection -->
                     <div class="file-input-group">
-                        <label class="file-label">Select Letterboxd Export Folder:</label>
+                        <label class="file-label">Select Letterboxd export folder:</label>
                         <div class="file-picker">
                             <span class="file-name" x-text="selectedFolderName || 'No folder selected'"></span>
                             <button @click="selectFolderAndAnalyze()" :disabled="isAnalyzing" 
                                     class="btn btn-primary btn-large" style="white-space: nowrap;">
                                 <span x-show="isAnalyzing" class="spinner"></span>
-                                <span x-text="isAnalyzing ? 'Analyzing...' : '📂 Select Folder & Analyze'"></span>
+                                <span x-text="isAnalyzing ? 'Analyzing...' : '📂 Analyze Letterboxd Folder'"></span>
                             </button>
                         </div>
                     </div>
@@ -57,12 +57,23 @@
                         </label>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="button-group">
-                        <button @click="loadSavedSnapshot()" :disabled="isAnalyzing" 
-                                class="btn btn-secondary btn-large">
-                            📂 Load Saved LePrAn Data
-                        </button>
+                    <!-- Info Box: Primary workflow explanation -->
+                    <div class="info-box info-box-primary">
+                        <p>💡 Select a folder containing your Letterboxd data export.</p>
+                        <p>📄 <strong>Required CSV files:</strong> <code>watched.csv</code>, <code>diary.csv</code></p>
+                        <p>📄 <strong>Optional CSV files:</strong> <code>watchlist.csv</code>, <code>profile.csv</code></p>
+                    </div>
+
+                    <!-- Secondary Workflow: Load Saved LePrAn Data -->
+                    <div class="file-input-group" style="margin-top: 16px;">
+                        <label class="file-label">Or load saved LePrAn data:</label>
+                        <div class="file-picker">
+                            <span class="file-name" x-text="snapshotFileName || 'No saved data loaded'"></span>
+                            <button @click="loadSavedSnapshot()" :disabled="isAnalyzing" 
+                                    class="btn btn-secondary btn-large" style="white-space: nowrap;">
+                                📂 Load Saved LePrAn Data
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Progress Bar -->
@@ -90,13 +101,6 @@
                         </div>
                     </div>
 
-                    <!-- Info -->
-                    <div class="info-box">
-                        <p>💡 Select a folder containing your Letterboxd data export.</p>
-                        <p>📄 <strong>Required CSV files:</strong> <code>watched.csv</code>, <code>diary.csv</code></p>
-                        <p>📄 <strong>Optional CSV files:</strong> <code>watchlist.csv</code>, <code>profile.csv</code></p>
-                        <p>ℹ️ Any other CSV files in the folder will be ignored by the application.</p>
-                    </div>
                 </div>
             </section>
 
@@ -573,7 +577,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Made by Luca 'Syr' Lombardo | LePrAn v2.0</p>
+            <p>Made by Luca 'Syr' Lombardo | LePrAn v2.0.0 (pre-release)</p>
         </footer>
     </div>
 

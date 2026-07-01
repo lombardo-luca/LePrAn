@@ -5,11 +5,12 @@
 
 function lepranApp() {
     return {
-          // State
-           logoPath: 'assets/logo.png',
-           selectedFolder: null,
-           selectedFolderName: '',
-           isAnalyzing: false,
+        // State
+        logoPath: 'assets/logo.png',
+        selectedFolder: null,
+        selectedFolderName: '',
+        snapshotFileName: '',
+        isAnalyzing: false,
           progressPercent: 0,
           analysisProgress: 'Starting...',
           hasResults: false,
@@ -774,6 +775,7 @@ function lepranApp() {
                         });
                         
                         this.hasResults = true;
+                        this.snapshotFileName = result.filename || 'Saved LePrAn data';
                     } else {
                         alert('Failed to load snapshot: ' + (result?.error || 'Unknown error'));
                     }
@@ -1181,6 +1183,7 @@ function lepranApp() {
              this.hasResults = false;
              this.selectedFolder = null;
              this.selectedFolderName = '';
+             this.snapshotFileName = '';
              this.importWatchlist = true; // Reset to default
              this.stats = { username: '', filmsCount: 0, totalRuntime: '0h', totalHours: 0, totalDays: 0, scrapedAt: '' };
             this.rawData = { countries: [], languages: [], genres: [], directors: [], actors: [], decades: [] };
