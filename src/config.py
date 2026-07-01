@@ -129,7 +129,6 @@ class Config:
                     value = f.read().strip()
                     if value in ('light', 'dark'):
                         self.theme = value
-                        logger.info(f"Theme loaded from {self.theme_path}: {self.theme}")
                         return
                     logger.warning(f"Invalid theme value in {self.theme_path}: {value!r}")
             except IOError as e:
@@ -145,7 +144,6 @@ class Config:
         try:
             with open(self.theme_path, 'w', encoding='utf-8') as f:
                 f.write(theme + '\n')
-            logger.info(f"Theme saved: {theme}")
         except IOError as e:
             logger.error(f"Error saving theme: {e}")
 
