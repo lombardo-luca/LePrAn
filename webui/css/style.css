@@ -61,8 +61,6 @@ body {
     width: auto;
     height: 80px;
     max-width: 180px;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
     object-fit: contain;
 }
 
