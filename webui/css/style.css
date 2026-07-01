@@ -1054,3 +1054,54 @@ body {
     white-space: nowrap;
     transition: color var(--transition-normal);
 }
+
+/* ============================================
+   Sortable Table Header Styles
+   ============================================ */
+
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.sortable-header:hover {
+    color: var(--accent-blue);
+    background-color: var(--bg-color-elevated, rgba(255, 255, 255, 0.04));
+}
+
+.sort-indicator {
+    margin-left: 4px;
+    font-size: 0.7em;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.sortable-header.sorted-asc .sort-indicator,
+.sortable-header.sorted-desc .sort-indicator {
+    opacity: 1;
+}
+
+.sortable-header.sorted-asc {
+    color: var(--accent-blue);
+}
+
+.sortable-header.sorted-desc {
+    color: var(--accent-orange);
+}
+
+/* ============================================
+   Theme-aware sortable header hover (light mode)
+   ============================================ */
+[data-theme="light"] .sortable-header:hover {
+    color: var(--accent-blue);
+    background-color: var(--bg-color-elevated, rgba(0, 0, 0, 0.04));
+}
+
+[data-theme="light"] .sortable-header.sorted-asc {
+    color: var(--accent-blue);
+}
+
+[data-theme="light"] .sortable-header.sorted-desc {
+    color: var(--accent-orange);
+}

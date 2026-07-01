@@ -166,7 +166,12 @@
                                 <div class="table-container">
                                     <table class="data-table">
                                         <thead>
-                                            <tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th @click="toggleSort('countries', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('countries', 'name') === 'asc', 'sorted-desc': getSortIndicator('countries', 'name') === 'desc'}">Name <span class="sort-indicator" x-show="getSortIndicator('countries', 'name') !== ''" x-text="getSortIndicator('countries', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('countries', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('countries', 'films') === 'asc', 'sorted-desc': getSortIndicator('countries', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('countries', 'films') !== ''" x-text="getSortIndicator('countries', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('countries', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('countries', 'percent') === 'asc', 'sorted-desc': getSortIndicator('countries', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('countries', 'percent') !== ''" x-text="getSortIndicator('countries', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                            </tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.countries" :key="idx">
@@ -203,7 +208,14 @@
                             <div class="panel-content" x-show="leftPanel === 'languages'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th @click="toggleSort('languages', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('languages', 'name') === 'asc', 'sorted-desc': getSortIndicator('languages', 'name') === 'desc'}">Name <span class="sort-indicator" x-show="getSortIndicator('languages', 'name') !== ''" x-text="getSortIndicator('languages', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('languages', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('languages', 'films') === 'asc', 'sorted-desc': getSortIndicator('languages', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('languages', 'films') !== ''" x-text="getSortIndicator('languages', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('languages', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('languages', 'percent') === 'asc', 'sorted-desc': getSortIndicator('languages', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('languages', 'percent') !== ''" x-text="getSortIndicator('languages', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.languages" :key="idx">
                                                 <tr>
@@ -239,7 +251,14 @@
                             <div class="panel-content" x-show="leftPanel === 'genres'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th @click="toggleSort('genres', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('genres', 'name') === 'asc', 'sorted-desc': getSortIndicator('genres', 'name') === 'desc'}">Name <span class="sort-indicator" x-show="getSortIndicator('genres', 'name') !== ''" x-text="getSortIndicator('genres', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('genres', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('genres', 'films') === 'asc', 'sorted-desc': getSortIndicator('genres', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('genres', 'films') !== ''" x-text="getSortIndicator('genres', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('genres', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('genres', 'percent') === 'asc', 'sorted-desc': getSortIndicator('genres', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('genres', 'percent') !== ''" x-text="getSortIndicator('genres', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.genres" :key="idx">
                                                 <tr>
@@ -275,7 +294,14 @@
                             <div class="panel-content" x-show="leftPanel === 'decades'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Rank</th><th>Decade</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th @click="toggleSort('decades', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('decades', 'name') === 'asc', 'sorted-desc': getSortIndicator('decades', 'name') === 'desc'}">Decade <span class="sort-indicator" x-show="getSortIndicator('decades', 'name') !== ''" x-text="getSortIndicator('decades', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('decades', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('decades', 'films') === 'asc', 'sorted-desc': getSortIndicator('decades', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('decades', 'films') !== ''" x-text="getSortIndicator('decades', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('decades', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('decades', 'percent') === 'asc', 'sorted-desc': getSortIndicator('decades', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('decades', 'percent') !== ''" x-text="getSortIndicator('decades', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.decades" :key="idx">
                                                 <tr>
@@ -332,7 +358,14 @@
                               <div class="panel-content" x-show="rightPanel === 'directors'" x-transition>
                                 <div class="table-container">
                                     <table class="data-table">
-                                        <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th @click="toggleSort('directors', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('directors', 'name') === 'asc', 'sorted-desc': getSortIndicator('directors', 'name') === 'desc'}">Name <span class="sort-indicator" x-show="getSortIndicator('directors', 'name') !== ''" x-text="getSortIndicator('directors', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('directors', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('directors', 'films') === 'asc', 'sorted-desc': getSortIndicator('directors', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('directors', 'films') !== ''" x-text="getSortIndicator('directors', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                <th @click="toggleSort('directors', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('directors', 'percent') === 'asc', 'sorted-desc': getSortIndicator('directors', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('directors', 'percent') !== ''" x-text="getSortIndicator('directors', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             <template x-for="(item, idx) in sortedData.directors" :key="idx">
                                                 <tr>
@@ -363,10 +396,17 @@
                               <!-- Actors Content -->
                               <div class="panel-content" x-show="rightPanel === 'actors'" x-transition>
                                  <div class="table-container">
-                                     <table class="data-table">
-                                         <thead><tr><th>Rank</th><th>Name</th><th>Films</th><th>%</th></tr></thead>
-                                         <tbody>
-                                             <template x-for="(item, idx) in sortedData.actors" :key="idx">
+                                      <table class="data-table">
+                                          <thead>
+                                              <tr>
+                                                  <th>Rank</th>
+                                                  <th @click="toggleSort('actors', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('actors', 'name') === 'asc', 'sorted-desc': getSortIndicator('actors', 'name') === 'desc'}">Name <span class="sort-indicator" x-show="getSortIndicator('actors', 'name') !== ''" x-text="getSortIndicator('actors', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                  <th @click="toggleSort('actors', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('actors', 'films') === 'asc', 'sorted-desc': getSortIndicator('actors', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('actors', 'films') !== ''" x-text="getSortIndicator('actors', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                  <th @click="toggleSort('actors', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('actors', 'percent') === 'asc', 'sorted-desc': getSortIndicator('actors', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('actors', 'percent') !== ''" x-text="getSortIndicator('actors', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              <template x-for="(item, idx) in sortedData.actors" :key="idx">
                                                  <tr>
                                                      <td x-text="idx + 1"></td>
                                                      <td x-text="item.name"></td>
@@ -419,13 +459,13 @@
                                          <thead>
                                              <tr>
                                                  <th>Rank</th>
-                                                 <th x-text="diaryAggregationMode === 'weekday' ? 'Day' : (diaryAggregationMode === 'month' ? 'Month' : 'Year')"></th>
-                                                 <th>Films</th>
-                                                 <th>%</th>
-                                             </tr>
-                                         </thead>
-                                         <tbody>
-                                             <template x-for="(item, idx) in sortedDiaryData" :key="idx">
+                                                 <th @click="toggleSort('diary', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('diary', 'name') === 'asc', 'sorted-desc': getSortIndicator('diary', 'name') === 'desc'}" x-text="(diaryAggregationMode === 'weekday' ? 'Day' : (diaryAggregationMode === 'month' ? 'Month' : 'Year')) + ' ' + getSortIndicator('diary', 'name')"> <span class="sort-indicator" x-show="getSortIndicator('diary', 'name') !== ''" x-text="getSortIndicator('diary', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                 <th @click="toggleSort('diary', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('diary', 'films') === 'asc', 'sorted-desc': getSortIndicator('diary', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('diary', 'films') !== ''" x-text="getSortIndicator('diary', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                  <th @click="toggleSort('diary', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('diary', 'percent') === 'asc', 'sorted-desc': getSortIndicator('diary', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('diary', 'percent') !== ''" x-text="getSortIndicator('diary', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              <template x-for="(item, idx) in sortedDiaryData" :key="idx">
                                                  <tr>
                                                      <td x-text="idx + 1"></td>
                                                      <td x-text="item.name"></td>
@@ -486,9 +526,9 @@
                                                       <thead>
                                                           <tr>
                                                               <th>Rank</th>
-                                                              <th>Budget Range</th>
-                                                              <th>Films</th>
-                                                              <th>%</th>
+                                                              <th @click="toggleSort('budgetRange', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('budgetRange', 'name') === 'asc', 'sorted-desc': getSortIndicator('budgetRange', 'name') === 'desc'}">Budget Range <span class="sort-indicator" x-show="getSortIndicator('budgetRange', 'name') !== ''" x-text="getSortIndicator('budgetRange', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                              <th @click="toggleSort('budgetRange', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('budgetRange', 'films') === 'asc', 'sorted-desc': getSortIndicator('budgetRange', 'films') === 'desc'}">Films <span class="sort-indicator" x-show="getSortIndicator('budgetRange', 'films') !== ''" x-text="getSortIndicator('budgetRange', 'films') === 'asc' ? '▲' : '▼'"></span></th>
+                                                              <th @click="toggleSort('budgetRange', 'percent')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('budgetRange', 'percent') === 'asc', 'sorted-desc': getSortIndicator('budgetRange', 'percent') === 'desc'}">% <span class="sort-indicator" x-show="getSortIndicator('budgetRange', 'percent') !== ''" x-text="getSortIndicator('budgetRange', 'percent') === 'asc' ? '▲' : '▼'"></span></th>
                                                           </tr>
                                                       </thead>
                                                       <tbody>
@@ -518,8 +558,8 @@
                                                       <thead>
                                                           <tr>
                                                               <th>Rank</th>
-                                                              <th>Film</th>
-                                                              <th x-text="financialViewMode === 'budget' ? 'Budget ($)' : 'Box Office ($)'"></th>
+                                                              <th @click="toggleSort('financial', 'name')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('financial', 'name') === 'asc', 'sorted-desc': getSortIndicator('financial', 'name') === 'desc'}">Film <span class="sort-indicator" x-show="getSortIndicator('financial', 'name') !== ''" x-text="getSortIndicator('financial', 'name') === 'asc' ? '▲' : '▼'"></span></th>
+                                                              <th @click="toggleSort('financial', 'films')" :class="{'sortable-header': true, 'sorted-asc': getSortIndicator('financial', 'films') === 'asc', 'sorted-desc': getSortIndicator('financial', 'films') === 'desc'}" x-text="financialViewMode === 'budget' ? 'Budget ($)' : 'Box Office ($)'" > <span class="sort-indicator" x-show="getSortIndicator('financial', 'films') !== ''" x-text="getSortIndicator('financial', 'films') === 'asc' ? '▲' : '▼'"></span></th>
                                                           </tr>
                                                       </thead>
                                                  <tbody>

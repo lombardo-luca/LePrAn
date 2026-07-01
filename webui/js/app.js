@@ -170,8 +170,22 @@ function lepranApp() {
            // Financial view mode: 'budget', 'budget_range', or 'boxoffice'
            financialViewMode: 'budget',
           
-          // Pie chart slice limit (top N slices, rest grouped as "Other")
-          pieSliceLimit: 7,
+           // Pie chart slice limit (top N slices, rest grouped as "Other")
+           pieSliceLimit: 7,
+           
+           // Sort state per category: tracks active sort column and direction
+           // Each category: { column: string|null, direction: 'asc'|'desc' }
+           sortState: {
+               countries: { column: null, direction: 'asc' },
+               languages: { column: null, direction: 'asc' },
+               genres: { column: null, direction: 'asc' },
+               decades: { column: null, direction: 'asc' },
+               directors: { column: null, direction: 'asc' },
+               actors: { column: null, direction: 'asc' },
+               diary: { column: null, direction: 'asc' },
+               budgetRange: { column: null, direction: 'asc' },
+               financial: { column: null, direction: 'asc' }
+           },
           
           // Financial value formatting helper
           formatFinancialValue(value, mode) {
@@ -186,6 +200,7 @@ function lepranApp() {
           // Film panel categories (countries, languages, genres, decades) -> panelDataSources.films
           // People panel categories (directors, actors) -> panelDataSources.people
           // Each category is limited to DISPLAY_LIMIT entries unless its respective expanded state is true
+          // Sorting is applied from the FULL underlying dataset before slicing to DISPLAY_LIMIT
           get sortedData() {
               const result = {};
               const expansionStates = {
@@ -208,7 +223,16 @@ function lepranApp() {
               
               for (const key of Object.keys(filmSourceData)) {
                   const source = filmCategories.includes(key) ? filmSourceData : peopleSourceData;
-                  let sorted = [...source[key]].sort((a, b) => b.count - a.count);
+                  let sorted = [...source[key]];
+                  
+                  // Apply global sort if active for this category
+                  const sort = this.sortState[key];
+                  if (sort && sort.column) {
+                      sorted = this._sortByColumn(sorted, sort.column, sort.direction);
+                  } else {
+                      // Default: sort by count descending
+                      sorted.sort((a, b) => b.count - a.count);
+                  }
                   
                   // Limit to top 100 unless that category is expanded
                   if (!expansionStates[key]) {
@@ -243,10 +267,17 @@ function lepranApp() {
           },
           
           // Computed: sorted diary data based on current aggregation mode
+          // Sorting is applied from the FULL underlying dataset before slicing to DISPLAY_LIMIT
           // Limited to DISPLAY_LIMIT entries unless diaryExpanded is true
           get sortedDiaryData() {
               let data = this.rawDiaryData[this.diaryAggregationMode] || [];
-              data = [...data].sort((a, b) => b.count - a.count);
+              // Apply global sort if active for diary
+              const sort = this.sortState.diary;
+              if (sort && sort.column) {
+                  data = this._sortByColumn(data, sort.column, sort.direction);
+              } else {
+                  data = [...data].sort((a, b) => b.count - a.count);
+              }
               if (!this.diaryExpanded) {
                   data = data.slice(0, this.DISPLAY_LIMIT);
               }
@@ -255,13 +286,20 @@ function lepranApp() {
           
            // Computed: sorted financial data based on current view mode
            // Source-aware: reads from rawFinancialData (watched) or watchlistFinancialData based on panelDataSources.finance
+           // Sorting is applied from the FULL underlying dataset before slicing to DISPLAY_LIMIT
            // Limited to DISPLAY_LIMIT entries unless financialExpanded is true
            get sortedFinancialData() {
                const sourceData = this.panelDataSources.finance === 'watchlist' 
                    ? this.watchlistFinancialData 
                    : this.rawFinancialData;
                let data = sourceData[this.financialViewMode] || [];
-               data = [...data].sort((a, b) => b.count - a.count);
+               // Apply global sort if active for financial
+               const sort = this.sortState.financial;
+               if (sort && sort.column) {
+                   data = this._sortByColumn(data, sort.column, sort.direction);
+               } else {
+                   data = [...data].sort((a, b) => b.count - a.count);
+               }
                if (!this.financialExpanded) {
                    data = data.slice(0, this.DISPLAY_LIMIT);
                }
@@ -270,17 +308,24 @@ function lepranApp() {
            
            // Computed: sorted budget range data (bucket aggregation)
            // Source-aware: reads from rawBudgetRangeData (watched) or watchlistBudgetRangeData based on panelDataSources.finance
+           // Sorting is applied from the FULL underlying dataset before slicing to DISPLAY_LIMIT
             get sortedBudgetRangeData() {
                 const sourceData = this.panelDataSources.finance === 'watchlist' 
                     ? this.watchlistBudgetRangeData 
                     : this.rawBudgetRangeData;
                 let data = [...sourceData];
-                // Sort by number of films descending, "Unknown / Not reported" last
-                data.sort((a, b) => {
-                    if (a.range === 'Unknown / Not reported') return 1;
-                    if (b.range === 'Unknown / Not reported') return -1;
-                    return b.count - a.count;
-                });
+                // Apply global sort if active for budgetRange
+                const sort = this.sortState.budgetRange;
+                if (sort && sort.column) {
+                    data = this._sortByColumn(data, sort.column, sort.direction);
+                } else {
+                    // Default: sort by number of films descending, "Unknown / Not reported" last
+                    data.sort((a, b) => {
+                        if (a.range === 'Unknown / Not reported') return 1;
+                        if (b.range === 'Unknown / Not reported') return -1;
+                        return b.count - a.count;
+                    });
+                }
                 if (!this.budgetRangeExpanded) {
                     data = data.slice(0, this.DISPLAY_LIMIT);
                 }
@@ -1089,6 +1134,64 @@ function lepranApp() {
             const h = Math.floor(m / 60);
             const remM = m % 60;
             return remM > 0 ? `${h}h${remM}m` : `${h}h`;
+        },
+        
+        // --- Sort Methods ---
+        
+        // Helper: sort an array by a given column and direction (in-place, on a copy)
+        // Column 'name' or 'films' for category tables; 'name' or 'count' for financial/budget
+        // Column 'percent' sorts numerically by the percentage value (e.g., "47.30%" → 47.30)
+        _sortByColumn(data, column, direction) {
+            if (!column || !data) return data;
+            const dir = direction === 'asc' ? 1 : -1;
+            return data.slice().sort((a, b) => {
+                let valA, valB;
+                if (column === 'name') {
+                    valA = String(a.name || '').toLowerCase();
+                    valB = String(b.name || '').toLowerCase();
+                    if (valA < valB) return -1 * dir;
+                    if (valA > valB) return 1 * dir;
+                    return 0;
+                }
+                if (column === 'percent') {
+                    // Parse percentage strings like "47.30%" → 47.30
+                    const parsePercent = (val) => {
+                        if (typeof val === 'number') return val;
+                        const match = String(val || '').match(/([\d.]+)/);
+                        return match ? parseFloat(match[1]) : 0;
+                    };
+                    valA = parsePercent(a.percent);
+                    valB = parsePercent(b.percent);
+                    return (valA - valB) * dir;
+                }
+                // 'films' maps to 'count', same for budget range and financial
+                valA = Number(a.count) || 0;
+                valB = Number(b.count) || 0;
+                return (valA - valB) * dir;
+            });
+        },
+        
+        // Toggle sort for a category: first click = asc, second = desc, toggle thereafter
+        // Only one active sort column per category at a time
+        toggleSort(category, column) {
+            const state = this.sortState[category];
+            if (!state) return;
+            
+            if (state.column === column) {
+                // Same column: toggle direction
+                state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                // Different column: set new sort column with ascending direction
+                state.column = column;
+                state.direction = 'asc';
+            }
+        },
+        
+        // Get the sort indicator text for a category/column pair
+        getSortIndicator(category, column) {
+            const state = this.sortState[category];
+            if (!state || state.column !== column) return '';
+            return state.direction === 'asc' ? 'asc' : 'desc';
         },
         
         // Toggle category expansion methods
